@@ -253,3 +253,21 @@ fn execution_counts_and_network_snapshots_share_the_certified_floor() {
     assert!(retained[0] < 1.000001);
     assert!(replayed[0] >= 2.0);
 }
+
+#[test]
+fn live_release_timer_floor_requires_covering_the_skipped_check() {
+    let mut s = setup();
+    let mut r = row();
+    r.identity.source = RowSource::Live;
+    r.trigger_type = 0;
+    r.release = 1;
+    r.act = 0.06; // event 20, trigger frame 40, skipped timer check 80
+    assert_eq!(command_floor_times(&s, [&r].into_iter(), |_| false), [0, 0, 40, 80]);
+    r.act = 0.01;
+    assert_eq!(command_floor_times(&s, [&r].into_iter(), |_| false), [0; 4]);
+    r.act = 0.06;
+    s.events.push((1, 0)); // every possible scheduled start must satisfy the certificate
+    assert_eq!(command_floor_times(&s, [&r].into_iter(), |_| false), [0, 0, 40, 80]);
+    s.events.push((2, 1));
+    assert_eq!(command_floor_times(&s, [&r].into_iter(), |_| false), [0; 4]);
+}

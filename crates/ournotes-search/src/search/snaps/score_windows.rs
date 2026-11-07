@@ -215,7 +215,17 @@ pub(super) fn windows(
         for &ev in events {
             let Some(i0) = geo.first_frame(ev) else { continue };
             // a second event of the position restarts the effect without removing the first factor
-            let end = if events.len() >= 2 { i64::MAX } else { geo.end(ev, i0, r.act, ext, unbounded) };
+            let end = if events.len() >= 2 {
+                i64::MAX
+            } else if r.release != 0 {
+                // A release skips the first timer check and can end on the frame that
+                // observes expiry (rather than at the nominal timer timestamp).
+                let nominal = geo.end(ev, i0, r.act, ext, unbounded);
+                let after = geo.frames.partition_point(|&t| i64::from(t) <= nominal).max(i0 + 2);
+                if r.act > 0.0 { geo.frames.get(after).map_or(i64::MAX, |&t| i64::from(t)) } else { i64::MAX }
+            } else {
+                geo.end(ev, i0, r.act, ext, unbounded)
+            };
             push(&mut out, geo.range(ev as i64, end), note, judge, 0, 0);
             cmds = (cmds + 2.0 * c).next_up();
             cmds_plain = (cmds_plain + 2.0 * c).next_up();
@@ -333,19 +343,33 @@ pub(super) fn windows(
                 }
                 spans.push((a, b, (note + judge.iter().copied().fold(0f64, f64::max)) * mult));
             }
-        } else if r.event_bound && !r.churn {
+        } else if r.event_bound {
             for &ev in events {
                 let Some(i0) = geo.first_frame(ev) else { continue };
                 let exec = geo.frames[i0];
                 let end = geo.end(exec, i0, r.act, 0.0, false);
                 push(&mut out, geo.range(exec as i64, end), note, judge, 0, 0);
-                cmds = (cmds + 2.0 * c).next_up();
-                cmds_plain = (cmds_plain + 2.0 * c).next_up();
+                let count = if r.churn {
+                    command_count(
+                        1.0,
+                        1.0,
+                        // The timer expires strictly after its duration; frames exactly
+                        // at the endpoint can still replace the factor.
+                        geo.frames_in(exec as i64, end.saturating_add(1)),
+                        Some(r.churn_max.unwrap_or(f64::INFINITY)),
+                        c,
+                    )
+                } else {
+                    2.0 * c
+                };
+                cmds = (cmds + count).next_up();
+                cmds_plain = (cmds_plain + count).next_up();
                 add(&mut fac, note, judge, 1.0);
-                let op = product_up(
-                    c,
-                    (geo.exec.over(exec as i64, exec as i64) + geo.exec.over(exec as i64, end)).next_up(),
-                );
+                let op = if r.churn {
+                    product_up(count, geo.exec.over(exec as i64, end))
+                } else {
+                    product_up(c, (geo.exec.over(exec as i64, exec as i64) + geo.exec.over(exec as i64, end)).next_up())
+                };
                 ops = (ops + op).next_up();
                 ops_plain = (ops_plain + op).next_up();
                 spans.push((exec as i64, end, note + judge.iter().copied().fold(0f64, f64::max)));
@@ -591,7 +615,20 @@ pub(super) fn command_floor_times<'r>(
             let duration = r.act * 1000f32;
             let covers_play = duration.is_finite() && duration >= horizon;
             let may_expire = r.act > 0.0 && !covers_play;
-            let started_release = r.trigger_type == 1 && range_start(r) && range_starts_covered(duration);
+            let live_starts_covered = r.identity.source == RowSource::Live
+                && duration.is_finite()
+                && setup.events.iter().all(|&(_, start)| {
+                    let k = frames.partition_point(|f| f.time_ms < start);
+                    frames.get(k + 1).is_none_or(|next| {
+                        i64::from(start) + i64::from(ournotes_sim::num::ceil_to_i32(duration))
+                            >= i64::from(next.time_ms)
+                    })
+                });
+            // A release-controlled live row also skips its first timer check.
+            // When its nominal expiry reaches that frame, all later timer commands
+            // are at least the preceding frame, just as for a range-start row.
+            let started_release =
+                live_starts_covered || r.trigger_type == 1 && range_start(r) && range_starts_covered(duration);
             !(r.effect_type == 15000 && r.value < 0
                 || may_expire && (r.release != 0 && !started_release || r.gk && r.trigger_type == 2))
         });

@@ -514,7 +514,7 @@ impl<'a> SnapLive<'a> {
                             limit: r.limit,
                             execute_limit: r.execute_limit,
                             targets: r.targets.clone(),
-                            max_value: if r.gk { r.max_value } else { 0 },
+                            max_value: if r.gk || r.effect_type == 2001 { r.max_value } else { 0 },
                         });
                         rows.push(active_row(&env, r, can_start, event_bound)?);
                     }

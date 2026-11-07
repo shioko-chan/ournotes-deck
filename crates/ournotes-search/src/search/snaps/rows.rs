@@ -513,7 +513,9 @@ pub(super) fn live_rows(env: &Env, id: i64, level: i64) -> Result<Vec<Row>, Erro
     rows.sort_by_key(|(_, r)| r.id);
     rows.iter()
         .map(|&(index, r)| {
-            if r.skill_release_condition_group != 0 || r.skill_cumulative_condition_id != 0 || r.effect_limit_count != 0
+            if (r.skill_release_condition_group != 0 && !matches!(r.skill_effect_type, 2000 | 2004))
+                || r.skill_cumulative_condition_id != 0
+                || r.effect_limit_count != 0
             {
                 return Err(Error::Unsupported(format!(
                     "live skill effect {}: release condition, cumulative condition or effect limit",
@@ -533,7 +535,7 @@ pub(super) fn live_rows(env: &Env, id: i64, level: i64) -> Result<Vec<Row>, Erro
                 trigger_type: 0,
                 trigger: 0,
                 condition: r.skill_condition_group,
-                release: 0,
+                release: r.skill_release_condition_group,
                 reset: 0,
                 cumulative: 0,
                 effect_type: r.skill_effect_type,
@@ -661,7 +663,7 @@ pub(super) fn support_status(env: &Env, r: &Row, a: Attr<'_>) -> Result<(Status,
     let modelled = if r.gk {
         GK_TYPES.contains(&r.effect_type)
     } else {
-        matches!(r.effect_type, 2000 | 2004 | 3001 | 3003 | 3004 | 12006 | 13005 | 15000)
+        matches!(r.effect_type, 2000 | 2001 | 2004 | 3001 | 3003 | 3004 | 12006 | 13005 | 15000)
     };
     if !modelled && can_start {
         return Err(Error::Unsupported(format!("skill effect type {}", r.effect_type)));

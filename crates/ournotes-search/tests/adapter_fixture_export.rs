@@ -2558,3 +2558,6 @@ mod maximum_power_cap;
 
 #[path = "fixtures/arena_extensions.rs"]
 mod arena_extensions;
+
+#[path = "fixtures/ordinary_skill_shapes.rs"]
+mod ordinary_skill_shapes;
