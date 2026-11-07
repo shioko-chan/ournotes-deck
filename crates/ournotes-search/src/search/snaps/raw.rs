@@ -106,8 +106,8 @@ impl RawEnvelope {
         let prefix: Vec<_> = (0..5)
             .map(|kind| {
                 Prefix::new((0..fine.raw.len()).map(|e| {
-                    let raw = fine.raw[e];
-                    let jp = if kind == 0 { fine.mjp[1usize << raw] } else { fine.jp4[1usize << raw][kind - 1] };
+                    let mask = usize::from(fine.raw_mask(e));
+                    let jp = if kind == 0 { fine.mjp[mask] } else { fine.jp4[mask][kind - 1] };
                     let lo = ((coef.k[e] * coef.z[e]).next_down().max(0.0) * jp).next_down().max(0.0);
                     let hi = ((coef.k[e] * coef.z[e]).next_up() * jp).next_up();
                     (lo, hi)

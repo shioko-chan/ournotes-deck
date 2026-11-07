@@ -166,7 +166,8 @@ pub struct ContextInput {
     /// Optional solo rank-1 percentages, one per range, in place of the master values.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gekisou_rank_percents: Option<[i64; 3]>,
-    /// Opt-in result diagnostics; omitted by default to preserve existing serialized answers.
+    /// Enable result diagnostics for ordinary play. Timing-error play and explicit rank
+    /// overrides also enable diagnostics; old requests retain their serialized answer fields.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub gekisou_range_diagnostics: bool,
     pub power_snapshot: PowerSnapshotInput,

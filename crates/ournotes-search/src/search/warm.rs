@@ -391,7 +391,7 @@ pub(super) fn seed(e: &mut Engine<'_, '_>) -> Result<(), Error> {
             let now = crate::search::budget::now();
             now + deadline.saturating_duration_since(now) / 4
         });
-    let result = seed_inner(&w, e, seed_deadline);
+    let result = timing_assist_seed(&w, e).and_then(|()| seed_inner(&w, e, seed_deadline));
     e.rec.clock.lap(resume);
     e.rec.end(&mut e.tel);
     // This telemetry field is an exact incumbent value, not the interval route's conservative cutoff.
@@ -399,6 +399,55 @@ pub(super) fn seed(e: &mut Engine<'_, '_>) -> Result<(), Error> {
         e.safe_cutoff().filter(|_| e.certified.is_none()).map(|(threshold, _)| threshold.to_string());
     e.warm = Some(w);
     result
+}
+
+/// Accuracy seeding cannot value timing assist. Try exact one-Snap assist replacements
+/// around its incumbent before spending the budget on a static-bound shortlist.
+fn timing_assist_seed(w: &Warm<'_>, e: &mut Engine<'_, '_>) -> Result<(), Error> {
+    if !e.request.objective.context().is_some_and(|c| c.gekisou.timing_error.is_some()) {
+        return Ok(());
+    }
+    let mut assists = HashSet::new();
+    for &snap in w.domain.snaps() {
+        for (skill, level) in e.pool.snaps[snap].gekisou_support_skills()? {
+            if e.pool
+                .master
+                .gekisou_support_skill_effects
+                .iter()
+                .any(|r| r.skill_id == skill && r.level == level && r.skill_effect_type == 4004)
+            {
+                assists.insert(snap);
+            }
+        }
+    }
+    let now = crate::search::budget::now();
+    let deadline = e.budget.deadline().map(|end| now + end.saturating_duration_since(now) / 4);
+    for _ in 0..SEED_POLISH_ROUNDS {
+        let Some(best) = e.top.first().map(|t| t.physical) else { break };
+        let mut candidates = Vec::new();
+        for n in neighbours(w, &best, e) {
+            if n.members == best.members
+                && n.snaps.iter().flatten().any(|s| assists.contains(s) && !best.snaps.contains(&Some(*s)))
+            {
+                candidates.push((surrogate(w, &n, e)?, n));
+            }
+        }
+        candidates.sort_by_key(|a| std::cmp::Reverse(a.0));
+        for (value, deck) in candidates {
+            if deadline.is_some_and(|end| crate::search::budget::now() >= end) || !evaluate(w, value, deck, true, e)? {
+                return Ok(());
+            }
+            // Restart at the improved team so a second assist can be tried before
+            // the short warm-start budget is spent on the old team's neighbours.
+            if e.top.first().map(|t| t.physical) != Some(best) {
+                break;
+            }
+        }
+        if e.top.first().map(|t| t.physical) == Some(best) {
+            break;
+        }
+    }
+    Ok(())
 }
 
 fn bounded_target(metric: &crate::types::Metric) -> bool {

@@ -74,6 +74,7 @@ pub(super) fn has_activation_time(act: f32) -> bool {
 
 /// The facts of the chart, the play and the allowed cards that the classification reads.
 pub(super) struct Env<'a> {
+    pub(super) timing_error: bool,
     pub(super) master: &'a Master,
     pub(super) events: &'a [(i32, i32)],
     /// Condition sets of each group, in table order.
@@ -685,6 +686,7 @@ pub(super) fn support_status(env: &Env, r: &Row, a: Attr<'_>) -> Result<(Status,
     let st = match r.effect_type {
         2000 | 2001 | 2004 | 15000 => Status::Active,
         // the Just counts read by nothing that reaches the score
+        4004 if env.timing_error => Status::Active,
         4004 | 13000 | 13002 => Status::Inert,
         // lottery weights, gauge and points: consumed only in luck ranges
         11000 | 11001 | 11002 | 11003 | 11005 => {

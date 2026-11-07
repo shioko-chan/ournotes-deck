@@ -57,6 +57,44 @@ pub(crate) fn recommend_hooked_started(
     progress: Option<ProgressHook<'_>>,
     start: Instant,
 ) -> Result<RecommendationOutcome, Error> {
+    // A cheap accuracy search supplies complete teams before timing-dependent evaluation.
+    // It has its own search state and never supplies scores or bounds to the final search.
+    // Reserve most of the caller's wall budget for rescoring and the actual timing law.
+    let mut seeded;
+    let request = if let crate::types::Execution::Live {
+        score_id,
+        gekisou: true,
+        play: crate::types::PlayPolicy::TimingError { great_fraction, .. },
+    } = request.execution
+        && matches!(request.strategy, crate::types::Strategy::BranchAndBound)
+    {
+        seeded = request.clone();
+        let mut accuracy = request.clone();
+        accuracy.execution = crate::types::Execution::Live {
+            score_id,
+            gekisou: true,
+            play: crate::types::PlayPolicy::Accuracy(ournotes_sim::live::model::Accuracy {
+                great_fraction,
+                just_fraction: 0.5,
+            }),
+        };
+        accuracy.limits.time_limit_ms = Some(request.limits.time_limit_ms.map_or(5_000, |ms| ms / 4).min(5_000));
+        if let Some(context) = &mut accuracy.context {
+            context.gekisou_range_diagnostics = false;
+        }
+        // Validate the actual play before doing any surrogate work.
+        let _ = crate::handler::build_card_pool(data, roster, request)?;
+        let baseline = recommend_hooked(data, roster, &accuracy, None)?;
+        for deck in baseline.results {
+            if seeded.initial_decks.len() == crate::types::MAX_INITIAL_DECKS {
+                break;
+            }
+            seeded.initial_decks.push(crate::types::DeckInput { members: deck.members, snaps: deck.snaps });
+        }
+        &seeded
+    } else {
+        request
+    };
     let built = crate::handler::build_card_pool(data, roster, request)?;
     crate::search::dispatch::execute(&built, None, start, start.elapsed().as_secs_f64() * 1000.0, progress)
 }

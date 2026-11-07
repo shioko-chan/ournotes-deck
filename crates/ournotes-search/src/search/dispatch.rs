@@ -87,7 +87,10 @@ pub(crate) fn execute(
             None,
         )?
     };
-    if context_input.gekisou_range_diagnostics {
+    if context_input.gekisou_range_diagnostics
+        || context_input.gekisou_rank_percents.is_some()
+        || request.objective.context().is_some_and(|c| c.gekisou.timing_error.is_some())
+    {
         for deck in &mut out.results {
             let Some(order) = &deck.best_order else { continue };
             let resolved = pool.deck(deck.members, deck.snaps, order.performance_order)?;

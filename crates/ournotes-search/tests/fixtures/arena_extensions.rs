@@ -65,6 +65,7 @@ fn arena_rank_override_matches_master_and_exhaustive_with_diagnostics() {
     }
     let mut master_request = request.clone();
     master_request.context.as_mut().unwrap().gekisou_rank_percents = None;
+    master_request.context.as_mut().unwrap().gekisou_range_diagnostics = true;
     assert_eq!(bounded.results, engine::recommend(&master_data, &roster, &master_request).unwrap().results);
     request.strategy = Strategy::Exhaustive;
     assert_eq!(bounded.results, engine::recommend(&data, &roster, &request).unwrap().results);
@@ -147,8 +148,31 @@ fn arena_timing_error_search_values_4004_and_preserves_accuracy() {
         gekisou: true,
         play: PlayPolicy::TimingError { sigma_ms: 60.0, great_fraction: 0.0 },
     };
-    request.constraints.include_snaps = vec![1];
     let active = engine::recommend(&data, &roster, &request).unwrap();
+    assert!(active.telemetry.environment.bounds.compiled, "timing bounds must compile");
+    let mut exhaustive = request.clone();
+    exhaustive.strategy = Strategy::Exhaustive;
+    let brute = engine::recommend(&data, &roster, &exhaustive).unwrap();
+    assert_eq!(active.results, brute.results, "timing bound and cache reuse must preserve the optimum");
+    let mut uncached = exhaustive.clone();
+    uncached.limits.cache_entries = 0;
+    assert_eq!(brute.results, engine::recommend(&data, &roster, &uncached).unwrap().results);
+    for sigma in [1.0, 29.0, 1000.0] {
+        let mut varied = request.clone();
+        varied.execution = ournotes_search::types::Execution::Live {
+            score_id: SCORE_ID,
+            gekisou: true,
+            play: PlayPolicy::TimingError { sigma_ms: sigma, great_fraction: 0.25 },
+        };
+        let bounded = engine::recommend(&data, &roster, &varied).unwrap();
+        varied.strategy = Strategy::Exhaustive;
+        varied.limits.cache_entries = 0;
+        assert_eq!(
+            bounded.results,
+            engine::recommend(&data, &roster, &varied).unwrap().results,
+            "timing bounds must cover sigma={sigma} with Greats"
+        );
+    }
     let mut inactive_data = data.clone();
     inactive_data.master.gekisou_support_skill_effects.last_mut().unwrap().effect_value = 0;
     let inactive = engine::recommend(&inactive_data, &roster, &request).unwrap();
@@ -182,4 +206,73 @@ fn arena_oversubscribed_snap_domain_is_empty_and_rank_wire_is_strict() {
         value["context"]["gekisouRankPercents"] = percents;
         assert!(serde_json::from_value::<RecommendationRequest>(value).is_err());
     }
+}
+
+#[test]
+fn arena_snapshot_serializes_diagnostics_and_preserves_absent_fields() {
+    let mut synth = synthetic_master(5, 0, 5);
+    set_column(&mut synth, "MasterLiveMusic", &mut |r| {
+        for key in ["_gekisouMission1", "_gekisouMission2", "_gekisouMission3"] {
+            r[key] = json!(3);
+        }
+    });
+    extend_table(
+        &mut synth,
+        "MasterMemberCardLevelLimit",
+        (1..=5)
+            .flat_map(|rarity| {
+                (1..=5).map(
+                    move |awake| json!({"_id":rarity*10+awake,"_rarity":rarity,"_awakeCount":awake,"_limitLevel":100}),
+                )
+            })
+            .collect(),
+    );
+    let data = DeckData::from_json(&data_document(&synth, 5, 0, 5).to_string()).unwrap();
+    let snapshot = snapshot_document(data.sha256.as_deref().unwrap(), 5, 0, 5);
+    for (extra, present) in [
+        (json!({}), false),
+        (json!({"gekisouRangeDiagnostics":true}), true),
+        (json!({"gekisouRankPercents":[190,190,190]}), true),
+    ] {
+        let mut request = joint_request_json("free", true, json!({"kind":"score"}));
+        request["context"].as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        let answer = engine::recommend_snapshot(&data, &snapshot.to_string(), &request.to_string(), None);
+        assert_eq!(answer.status, engine::SnapshotStatus::Ok, "{:?}", answer.errors);
+        let wire = serde_json::to_value(answer).unwrap();
+        let rows = wire["result"]["results"].as_array().unwrap();
+        assert!(!rows.is_empty());
+        for row in rows {
+            assert_eq!(row.get("gekisouRanges").is_some(), present);
+            if present {
+                assert_eq!(row["gekisouRanges"].as_array().unwrap().len(), 3);
+            }
+        }
+    }
+}
+
+#[test]
+fn arena_timing_seed_is_rescored_and_fixed_evaluation_keeps_the_leader() {
+    let (data, roster, mut request) = inputs(1);
+    request.execution = ournotes_search::types::Execution::Live {
+        score_id: SCORE_ID,
+        gekisou: true,
+        play: PlayPolicy::Accuracy(ournotes_sim::live::model::Accuracy { great_fraction: 0.1, just_fraction: 0.5 }),
+    };
+    let baseline = engine::recommend(&data, &roster, &request).unwrap();
+    let seed = &baseline.results[0];
+    request.execution = ournotes_search::types::Execution::Live {
+        score_id: SCORE_ID,
+        gekisou: true,
+        play: PlayPolicy::TimingError { sigma_ms: 29.0, great_fraction: 0.1 },
+    };
+    let rescored =
+        ournotes_search::auxiliary::evaluate_fixed(&data, &roster, &request, seed.members, seed.snaps).unwrap();
+    assert_eq!(rescored.results[0].members[2], seed.members[2]);
+    let out = engine::recommend(&data, &roster, &request).unwrap();
+    assert!(out.telemetry.phases.iter().any(|phase| phase.name == "initial"));
+    let numerator = |d: &ournotes_search::types::RecommendedDeck| {
+        d.expected_score.as_ref().unwrap().numerator.parse::<i128>().unwrap()
+    };
+    assert!(numerator(&out.results[0]) >= numerator(&rescored.results[0]));
+    assert!(out.results[0].gekisou_ranges.is_some(), "timingError enables diagnostics without the flag");
 }

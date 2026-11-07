@@ -124,10 +124,8 @@ pub(crate) fn compile_execution(
     // Top-K Snap matching and equivalent-Snap reductions assume no mandatory resources.
     // Enumerate physical bindings when resources are mandatory; relaxed bounds alone cannot
     // justify discarding the best unconstrained assignments and keeping only K of them.
-    let (joint, bound_fallback) = if !request.constraints.include_snaps.is_empty()
-        || request.objective.context().is_some_and(|c| c.gekisou.timing_error.is_some())
-    {
-        (None, Some("mandatory Snaps or timing-error play use physical enumeration".into()))
+    let (joint, bound_fallback) = if !request.constraints.include_snaps.is_empty() {
+        (None, Some("mandatory Snaps use physical enumeration".into()))
     } else if matches!(strategy, Strategy::BranchAndBound)
         && crate::search::team_power::applies(&request.objective, metric)
     {

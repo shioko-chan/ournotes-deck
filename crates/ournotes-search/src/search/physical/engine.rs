@@ -175,7 +175,7 @@ impl Engine<'_, '_> {
     }
 
     pub(super) fn consider(&mut self, physical: PhysicalDeck) -> Result<bool, Error> {
-        self.consider_with(physical, None)
+        self.consider_one(physical, None, None)
     }
 
     /// Evaluate a candidate deck (a team in its canonical layout for played lives) and offer it to the Top-K. `cut`
@@ -193,6 +193,36 @@ impl Engine<'_, '_> {
     /// may drop it before its power is computed ([`Engine::below_at_power_bound`]). The canonical layout keeps the
     /// leader and the member and Snap of every slot, so it keeps the power too.
     pub(super) fn consider_within(
+        &mut self,
+        physical: PhysicalDeck,
+        cut: Option<(&crate::search::joint::JointBounds, &crate::domain::CandidateDomain)>,
+        power_upper: Option<i64>,
+    ) -> Result<bool, Error> {
+        if !self.consider_one(physical, cut, power_upper)? {
+            return Ok(false);
+        }
+        if self.aggregation == Aggregation::Expected
+            && self.request.constraints.leader.is_none()
+            && self.request.objective.context().is_some_and(|c| c.gekisou.timing_error.is_some())
+        {
+            // Keep identical performer programs adjacent. Only the leader/power changes;
+            // all five layouts remain distinct legal candidates, with their own exact payoff.
+            let offered = self.offered;
+            for leader in [0, 1, 3, 4] {
+                let mut other = physical;
+                other.members.swap(2, leader);
+                other.snaps.swap(2, leader);
+                if !self.consider_one(other, cut, None)? {
+                    self.offered = offered;
+                    return Ok(false);
+                }
+            }
+            self.offered = offered;
+        }
+        Ok(true)
+    }
+
+    fn consider_one(
         &mut self,
         physical: PhysicalDeck,
         cut: Option<(&crate::search::joint::JointBounds, &crate::domain::CandidateDomain)>,

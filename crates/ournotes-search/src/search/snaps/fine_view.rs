@@ -327,7 +327,7 @@ impl FineView<'_> {
                 }
                 group = gs;
             }
-            let (mut mask, mut vmask) = (1u8 << f.raw[e], 1u8 << f.raw[e]);
+            let (mut mask, mut vmask) = (f.raw_mask(e), f.raw_mask(e));
             for x in extra.iter().flatten() {
                 mask |= x[e];
             }

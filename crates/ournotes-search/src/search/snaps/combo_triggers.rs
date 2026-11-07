@@ -276,6 +276,7 @@ mod tests {
         let mut g = GkFrames::new(&schedule, &frames, &entries);
         g.combo_triggers = ComboTriggers::compile(&master, &g, &entries, &reach, 23);
         let env = Env {
+            timing_error: false,
             master: &master,
             events: &[],
             sets: master.skill_condition_sets.iter().map(|s| (s.group, vec![s.condition_ids.as_slice()])).collect(),

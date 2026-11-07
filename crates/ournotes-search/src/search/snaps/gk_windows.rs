@@ -1101,6 +1101,7 @@ mod count_hit_tests {
 
     fn env(master: &Master) -> Env<'_> {
         let mut env = Env {
+            timing_error: false,
             master,
             events: &[],
             sets: HashMap::new(),

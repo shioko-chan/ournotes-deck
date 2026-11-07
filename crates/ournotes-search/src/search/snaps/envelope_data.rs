@@ -48,6 +48,9 @@ pub(super) struct Fine {
     pub(super) probe_starts: Option<ProbeStarts>,
     /// Raw judgement of each entry.
     pub(super) raw: Vec<u8>,
+    /// Possible raw judgements under timing-error play, before skill conversions.
+    /// Empty for a fixed judged stream.
+    pub(super) raw_masks: Vec<u8>,
     /// Index of the first entry at the same chart time.
     pub(super) group: Vec<u32>,
     /// `adj * level factor * note%` of each entry.
@@ -140,6 +143,10 @@ pub(super) enum CandLife {
 }
 
 impl Fine {
+    pub(super) fn raw_mask(&self, entry: usize) -> u8 {
+        self.raw_masks.get(entry).copied().unwrap_or(1u8 << self.raw[entry])
+    }
+
     /// The last time of the first slot at which the life is 0 in the slot-ordered fold of every damage (smallest
     /// damage per entry) and of the recoveries `rec[k]` at position `k`'s skill events, each as many times as the
     /// frame cache can apply it (`i64::MAX`: never). The commands of one slot are folded in an order that is not

@@ -720,7 +720,8 @@ pub struct ScoreSummary {
 #[serde(rename_all = "camelCase")]
 pub struct RecommendedDeck {
     /// State of the reported best order (also for expected aggregation). Opt-in via
-    /// context.gekisouRangeDiagnostics; absent if no single reported order is established.
+    /// context.gekisouRangeDiagnostics, or enabled by timingError/rank overrides; absent
+    /// if no single reported order is established.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gekisou_ranges: Option<Vec<GekisouRangeDiagnostic>>,
     pub members: [i64; 5],

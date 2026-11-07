@@ -256,7 +256,9 @@ impl Engine<'_, '_> {
         power: i32,
         cut: Option<(&crate::search::joint::JointBounds, &crate::domain::CandidateDomain)>,
     ) -> Result<Leaf, Error> {
-        if self.request.objective.context().is_some_and(|c| c.gekisou.timing_error.is_some()) {
+        if self.aggregation == Aggregation::Maximum
+            && self.request.objective.context().is_some_and(|c| c.gekisou.timing_error.is_some())
+        {
             // Judgements depend on this deck's active windows. Static-stream bounds,
             // rotation splices and power-parametric programs do not establish this law.
             let mut input = expectation::context(self.pool, physical, &self.request.objective)?;
@@ -597,8 +599,12 @@ impl Engine<'_, '_> {
             return Ok(Leaf::Evaluated(evaluation));
         }
         let orders: Vec<Vec<usize>> = missing_orders.iter().map(|o| o.to_vec()).collect();
-        let capture_budget =
-            self.programs.capture_budget_for(physical.members, &performers, &mut self.tel.caches.program_admissions);
+        let capture_budget = if self.request.objective.context().is_some_and(|c| c.gekisou.timing_error.is_some()) {
+            // Timing-error traversal immediately visits alternative leaders of the same program.
+            self.programs.capture_budget()
+        } else {
+            self.programs.capture_budget_for(physical.members, &performers, &mut self.tel.caches.program_admissions)
+        };
         self.tel.caches.program_bytes = self.programs.allocated_bytes();
         self.tel.caches.program_recordings += u64::from(capture_budget > 0);
         let live = input.into_ordered();
@@ -741,6 +747,10 @@ impl Engine<'_, '_> {
         orders: &[[usize; 5]],
     ) -> Result<Option<Vec<i32>>, Error> {
         let Some(setup) = &input.gekisou else { return Ok(None) };
+        // Dither mass and active timing windows are prefix state: rotations cannot be spliced.
+        if setup.timing_error.is_some() {
+            return Ok(None);
+        }
         if self.metric.any(|m| matches!(m, Metric::ScoreAndLifeAtLeast { .. })) {
             return Ok(None);
         }

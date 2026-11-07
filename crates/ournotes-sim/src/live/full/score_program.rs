@@ -319,14 +319,16 @@ impl NormalizedBuilder<'_> {
 }
 
 impl LiveModel {
+    /// Timing-error windows and dither mass depend on the performers and play, never total power.
+    /// Their realized judgements can therefore be recorded like a declared judgement stream.
+    ///
     /// Start an exact power-parameterized recording on a fresh native model. Clones share immutable recorded
     /// prefixes; only completed OrderedLive visits may be inserted into a complete-order cache.
     pub fn begin_score_program_recording(&mut self) -> Result<(), Error> {
         if self.program_has_started {
             return Err(Error::Input("score program requires a fresh LiveModel".into()));
         }
-        if self.timing_error.is_some()
-            || self.raw_runtime.is_some()
+        if self.raw_runtime.is_some()
             || self.raw_pending.is_some()
             || self.is_live_finished
             || self.prev_confirmed_rank.is_some()
@@ -987,6 +989,7 @@ mod tests {
                 {"_id":7,"_key":"gekisou_luck_rush_score_bonus_percent","_value":"10"}],
             "MasterLiveNoteParameter": [{"_id":1,"_noteOperateType":1,"_scorePercent":113}],
             "MasterLiveJudgementParameter": [
+                {"_id":2,"_noteSimulateJudgement":5,"_scorePercent":100,"_damage":0},
                 {"_id":1,"_noteSimulateJudgement":6,"_scorePercent":197,"_damage":0}],
             "MasterLiveJudgementTiming": [{"_id":1,"_noteJudgementType":1,"_noteSimulateJudgement":6,"_afterMs":100}],
             "MasterLiveComboScoreBonus": [
@@ -1083,6 +1086,42 @@ mod tests {
         }
         let dt = vec![0.016; frames.len()];
         (model, LivePlay { frames, base_seed: 7 }, dt)
+    }
+
+    #[test]
+    fn timing_error_program_matches_fresh_runs_at_other_powers() {
+        let make = |power| {
+            let (mut model, mut play, dt) = declared_model(power, 3, false);
+            let mut timing_master = master();
+            timing_master.live_judgement_timings[0].before_ms = 20;
+            let setup = GekisouSetup {
+                rank_percents: None,
+                timing_error: None,
+                fevers: vec![(120, 600)],
+                missions: vec![3; 3],
+            };
+            model.timing_error = Some(
+                super::super::timing_error::Runtime::new(
+                    &timing_master,
+                    &setup,
+                    super::super::TimingError::new(29.0).unwrap(),
+                )
+                .unwrap(),
+            );
+            for frame in &mut play.frames {
+                for note in &mut frame.judged {
+                    note.judgement = 5;
+                }
+            }
+            (model, play, dt)
+        };
+        let (model, play, dt) = make(200_000);
+        let (program, terminal) = model.compile_score_program(&play, &dt, LiveRandom::new(7)).unwrap();
+        assert!(terminal.gekisou_raw_just_counts()[0] > 0);
+        for power in [1, 123_457, 200_000, 1_000_003] {
+            let (mut fresh, play, dt) = make(power);
+            assert_eq!(program.evaluate(power), fresh.run_with_random(&play, &dt, LiveRandom::new(7)).unwrap());
+        }
     }
 
     #[test]

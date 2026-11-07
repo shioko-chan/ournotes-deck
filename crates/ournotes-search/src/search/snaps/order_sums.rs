@@ -336,7 +336,7 @@ impl Coefficients {
                 }
                 group = gs;
             }
-            let m = 1usize << f.raw[e];
+            let m = usize::from(f.raw_mask(e));
             if f.breaks[m] {
                 broke = Some(gs);
             }
@@ -482,6 +482,7 @@ mod tests {
             expected: true,
             probe_starts: probe.then_some(ProbeStarts { most: 3.0, expected: 1.5, luck: 1.2 }),
             raw,
+            raw_masks: Vec::new(),
             group,
             pre: (0..ne).map(|_| 0.5 + rng.unit()).collect(),
             pre_plain: Vec::new(),
@@ -634,7 +635,7 @@ mod tests {
                 }
                 group = gs;
             }
-            let m = 1usize << f.raw[e];
+            let m = usize::from(f.raw_mask(e));
             if f.breaks[m] {
                 broke = Some(gs);
             }

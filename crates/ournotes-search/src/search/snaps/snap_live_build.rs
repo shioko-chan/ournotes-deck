@@ -61,6 +61,7 @@ impl<'a> SnapLive<'a> {
         let notes: HashMap<i32, LiveNote> = setup.notes.iter().map(|n| (n.note_id, *n)).collect();
         // stream entries: (frame index, note, raw judgement)
         let mut entries = Vec::new();
+        let mut timing_eligible = Vec::new();
         for (fi, f) in setup.play.frames.iter().enumerate() {
             for j in &f.judged {
                 let n = *notes.get(&j.note_id).ok_or_else(|| Error::Input(format!("unknown note {}", j.note_id)))?;
@@ -71,9 +72,22 @@ impl<'a> SnapLive<'a> {
                     return Err(Error::Domain("score note is judged before its chart time".into()));
                 }
                 entries.push((fi, n, j.judgement));
+                timing_eligible.push(
+                    j.judgement == 5
+                        && setup.gk.as_ref().is_some_and(|g| {
+                            g.setup.timing_error.is_some()
+                                && g.setup.fevers.iter().zip(&g.setup.missions).any(|(&(start, end), &mission)| {
+                                    mission == 3 && start <= j.judgement_time_ms && j.judgement_time_ms < end
+                                })
+                        }),
+                );
             }
         }
+        let timing_error = setup.gk.as_ref().is_some_and(|g| g.setup.timing_error.is_some());
         let mut raw: Vec<i32> = entries.iter().map(|e| e.2).collect();
+        if timing_error {
+            raw.push(6);
+        }
         raw.sort_unstable();
         raw.dedup();
         let blocked = just_blocked(master, &entries);
@@ -87,6 +101,7 @@ impl<'a> SnapLive<'a> {
             sets.entry(s.group).or_default().push(&s.condition_ids);
         }
         let mut env = Env {
+            timing_error,
             master,
             events: &setup.events,
             sets,
@@ -177,6 +192,17 @@ impl<'a> SnapLive<'a> {
         let command_floors = command_floor_times(setup, all_rows(), |r| env.range_start_only(r.trigger));
         // A conversion can only enlarge this closure. Relax all targets/conditions/windows;
         // use a transitive closure so chains of multiple converters cannot escape it.
+        // Timing-error play can turn any eligible Perfect into Just before skill conversions.
+        // Relax to either judgement at every such note in a Just range. This is
+        // the widest-window envelope, independent of sigma, activation order and 4004.
+        if timing_error {
+            env.count_reach[5] |= 1 << 6;
+            // The fine conversion budgets read the original stream judgement. A conversion
+            // starting at a dynamically generated Just needs a transitive per-candidate bound.
+            if all_rows().any(|r| matches!(r.effect_type, 12006 | 13005) && r.targets.contains(&6)) {
+                return Err(Error::Unsupported("timing-error bound cannot convert a generated Just".into()));
+            }
+        }
         for r in all_rows().filter(|r| matches!(r.effect_type, 12006 | 13005)) {
             let to = convert_to(r.effect_type, r.value);
             if (0..8).contains(&to) {
@@ -276,6 +302,9 @@ impl<'a> SnapLive<'a> {
         // `all`: every conversion; else without the rows with a conversion budget (their score is bounded apart)
         let reach = |i: usize, j: i32, t: i64, all: bool| -> Vec<i32> {
             let mut v = vec![j];
+            if timing_eligible[i] && !blocked[i] {
+                v.push(6);
+            }
             for ((to, targets, w), budget) in &convs {
                 if (all || !budget)
                     && *to != j
@@ -300,6 +329,9 @@ impl<'a> SnapLive<'a> {
             .map(|(i, &(fi, _, j))| {
                 let t = fi as i64;
                 let mut mask = if (0..8).contains(&j) { 1u8 << j } else { 0 };
+                if timing_eligible[i] && !blocked[i] {
+                    mask |= 1 << 6;
+                }
                 loop {
                     let mut next = mask;
                     for ((to, targets, w), _) in &convs {
@@ -725,6 +757,14 @@ impl<'a> SnapLive<'a> {
             expected: luck.is_some(),
             probe_starts,
             raw: order.iter().map(|&i| entries[i].2 as u8).collect(),
+            raw_masks: if timing_error {
+                order
+                    .iter()
+                    .map(|&i| (1u8 << entries[i].2) | if timing_eligible[i] && !blocked[i] { 1 << 6 } else { 0 })
+                    .collect()
+            } else {
+                Vec::new()
+            },
             group: Vec::with_capacity(ne),
             pre_plain: if gkf.as_ref().is_some_and(|g| g.l.iter().any(|&l| l != 1.0)) { pre_plain } else { Vec::new() },
             pre,
