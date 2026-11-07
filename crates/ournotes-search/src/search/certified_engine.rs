@@ -1128,6 +1128,7 @@ impl Engine<'_, '_> {
                     // The payoff is the best order's; its score is that order's when the order is proved.
                     let best = entry.best.map(|best| self.certified_best_order(entry, best)).transpose()?;
                     return Ok(RecommendedDeck {
+                        gekisou_ranges: None,
                         members: entry.members,
                         snaps: entry.snaps,
                         power: entry.power,
@@ -1145,6 +1146,7 @@ impl Engine<'_, '_> {
                     });
                 }
                 Ok(RecommendedDeck {
+                    gekisou_ranges: None,
                     members: entry.members,
                     snaps: entry.snaps,
                     power: entry.power,

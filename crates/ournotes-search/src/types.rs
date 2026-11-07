@@ -107,6 +107,7 @@ fn strict_constraints<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Resu
     struct Wire {
         leader: Option<i64>,
         include_members: Vec<i64>,
+        include_snaps: Vec<i64>,
         exclude_members: Vec<i64>,
         exclude_snaps: Vec<i64>,
         no_snaps: bool,
@@ -115,6 +116,7 @@ fn strict_constraints<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Resu
     Ok(Constraints {
         leader: wire.leader,
         include_members: wire.include_members,
+        include_snaps: wire.include_snaps,
         exclude_members: wire.exclude_members,
         exclude_snaps: wire.exclude_snaps,
         no_snaps: wire.no_snaps,
@@ -138,6 +140,11 @@ pub enum PlayPolicy {
     /// The theoretical best play with a stated share of Great and Just judgements
     /// (`JudgementStream::with_accuracy`).
     Accuracy(Accuracy),
+    /// Deterministic normal timing-error realization with active 4004 windows.
+    TimingError {
+        sigma_ms: f64,
+        great_fraction: f64,
+    },
     Stream {
         stream: JudgementStream,
     },
@@ -239,6 +246,8 @@ struct PlayPolicyWire {
     great_fraction: RequestField<f64>,
     #[serde(default)]
     just_fraction: RequestField<f64>,
+    #[serde(default)]
+    sigma_ms: RequestField<f64>,
 }
 fn strict_stream<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<RequestField<JudgementStream>, D::Error> {
     #[derive(Deserialize)]
@@ -269,12 +278,14 @@ impl<'de> Deserialize<'de> for PlayPolicy {
         let w = PlayPolicyWire::deserialize(d)?;
         match w.kind.as_str() {
             "theoreticalBest" => {
+                w.sigma_ms.reject("sigmaMs", &["kind"])?;
                 w.stream.reject("stream", &["kind"])?;
                 w.great_fraction.reject("greatFraction", &["kind"])?;
                 w.just_fraction.reject("justFraction", &["kind"])?;
                 Ok(Self::TheoreticalBest)
             }
             "accuracy" => {
+                w.sigma_ms.reject("sigmaMs", &["kind"])?;
                 w.stream.reject("stream", &["kind", "greatFraction", "justFraction"])?;
                 Ok(Self::Accuracy(Accuracy {
                     great_fraction: w.great_fraction.required("greatFraction")?,
@@ -282,11 +293,25 @@ impl<'de> Deserialize<'de> for PlayPolicy {
                 }))
             }
             "stream" => {
+                w.sigma_ms.reject("sigmaMs", &["kind"])?;
                 w.great_fraction.reject("greatFraction", &["kind", "stream"])?;
                 w.just_fraction.reject("justFraction", &["kind", "stream"])?;
                 Ok(Self::Stream { stream: w.stream.required("stream")? })
             }
-            other => Err(serde::de::Error::unknown_variant(other, &["theoreticalBest", "accuracy", "stream"])),
+            "timingError" => {
+                w.stream.reject("stream", &["kind", "sigmaMs", "greatFraction"])?;
+                w.just_fraction.reject("justFraction", &["kind", "sigmaMs", "greatFraction"])?;
+                let sigma_ms = w.sigma_ms.required("sigmaMs")?;
+                ournotes_sim::live::full::TimingError::new(sigma_ms).map_err(serde::de::Error::custom)?;
+                let great_fraction = w.great_fraction.required("greatFraction")?;
+                if !great_fraction.is_finite() || !(0.0..=1.0).contains(&great_fraction) {
+                    return Err(serde::de::Error::custom("greatFraction must be in [0,1]"));
+                }
+                Ok(Self::TimingError { sigma_ms, great_fraction })
+            }
+            other => {
+                Err(serde::de::Error::unknown_variant(other, &["theoreticalBest", "accuracy", "stream", "timingError"]))
+            }
         }
     }
 }
@@ -694,6 +719,10 @@ pub struct ScoreSummary {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecommendedDeck {
+    /// State of the reported best order (also for expected aggregation). Opt-in via
+    /// context.gekisouRangeDiagnostics; absent if no single reported order is established.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gekisou_ranges: Option<Vec<GekisouRangeDiagnostic>>,
     pub members: [i64; 5],
     pub snaps: [Option<i64>; 5],
     pub power: i32,
@@ -750,4 +779,20 @@ pub struct RecommendationOutcome {
     pub results: Vec<RecommendedDeck>,
     pub telemetry: Telemetry,
     pub elapsed_ms: f64,
+}
+
+/// Final range state for one explicitly reported order, not an average of range counters.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GekisouRangeDiagnostic {
+    pub range_index: usize,
+    pub mission: i64,
+    pub score: i32,
+    pub rank_percent: Option<i64>,
+    pub combo: i32,
+    pub max_combo: i32,
+    /// Includes Just-bonus skills 13000/13002; this is the in-game ranking comparator's count.
+    pub just_count: i32,
+    /// Actual Just judgements, excluding bonus counts.
+    pub raw_just: i32,
 }

@@ -79,7 +79,12 @@ impl Scenario {
 
 impl ResolvedScenario {
     pub fn gekisou_setup(&self, fevers: &[(i32, i32)]) -> GekisouSetup {
-        GekisouSetup { fevers: fevers.to_vec(), missions: self.gekisou_missions.to_vec() }
+        GekisouSetup {
+            rank_percents: None,
+            timing_error: None,
+            fevers: fevers.to_vec(),
+            missions: self.gekisou_missions.to_vec(),
+        }
     }
 }
 
@@ -158,6 +163,12 @@ impl ResolvedContext {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ContextInput {
+    /// Optional solo rank-1 percentages, one per range, in place of the master values.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gekisou_rank_percents: Option<[i64; 3]>,
+    /// Opt-in result diagnostics; omitted by default to preserve existing serialized answers.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub gekisou_range_diagnostics: bool,
     pub power_snapshot: PowerSnapshotInput,
     pub result_clock: Option<ResultClockInput>,
     pub event_payoff: Option<EventPayoffInput>,
@@ -224,6 +235,12 @@ impl ContextInput {
         }
         let mut context =
             ResolvedContext::resolve(master, scenario, score_id, fevers, self.power_snapshot.event_ids.clone())?;
+        if let Some(percents) = self.gekisou_rank_percents {
+            if percents.iter().any(|&p| !(0..=i32::MAX as i64).contains(&p)) {
+                return Err(Error::Input("gekisouRankPercents must be three nonnegative i32 percentages".into()));
+            }
+            context.gekisou.rank_percents = Some(percents);
+        }
         context.power_snapshot_jst_ticks = self.power_snapshot.captured_jst_ticks;
         context.result_clock = self.result_clock.as_ref().map(ResultClockInput::resolve).transpose()?;
         Ok(context)

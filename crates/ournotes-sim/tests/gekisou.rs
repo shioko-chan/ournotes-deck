@@ -152,7 +152,7 @@ fn params(notes: &[LiveNote]) -> LiveParams {
 }
 
 fn setup(missions: [i64; 3]) -> GekisouSetup {
-    GekisouSetup { fevers: vec![(START, END)], missions: missions.to_vec() }
+    GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(START, END)], missions: missions.to_vec() }
 }
 
 fn run(m: &Master, deck: &[Performer], missions: [i64; 3], judge: impl Fn(&LiveNote) -> i32) -> LiveModel {
@@ -319,11 +319,16 @@ fn invalid_gekisou_inputs_are_rejected() {
     let (notes, events) = chart();
     let (p, _) = play(&notes, |_| 5);
     // three ranges; the fourth fever's start fails in the controller (native IndexOutOfRangeException)
-    let four = GekisouSetup { fevers: vec![(0, 1), (2, 3), (4, 5), (6, 7)], missions: vec![1, 1, 1, 1] };
+    let four = GekisouSetup {
+        rank_percents: None,
+        timing_error: None,
+        fevers: vec![(0, 1), (2, 3), (4, 5), (6, 7)],
+        missions: vec![1, 1, 1, 1],
+    };
     let mut lm = LiveModel::new_gekisou(&m, &[], &notes, &events, params(&notes), &four).unwrap();
     assert_eq!(lm.gekisou_ranges().len(), 3);
     assert!(matches!(lm.run(&p), Err(Error::Game(_))));
-    let short = GekisouSetup { fevers: vec![(START, END)], missions: vec![1] };
+    let short = GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(START, END)], missions: vec![1] };
     assert!(LiveModel::new_gekisou(&m, &[], &notes, &events, params(&notes), &short).is_err());
     let unknown = [gekisou_performer(99, &[])];
     assert!(matches!(
@@ -376,6 +381,8 @@ fn dynamic_ranges_wait_for_explicit_confirmation_and_retry_idempotently() {
     let (notes, events) = chart();
     let (p, dts) = play(&notes, |_| 6);
     let setup = GekisouSetup {
+        rank_percents: None,
+        timing_error: None,
         fevers: vec![(1200, 1600), (2100, 2500), (3100, 3500), (4100, 4500)],
         missions: vec![1, 2, 3, 4],
     };
@@ -410,7 +417,12 @@ fn external_confirmations_wait_for_completion_and_capture_all_completed_ranges()
     let m = master();
     let (notes, events) = chart();
     let (p, dts) = play(&notes, |_| 6);
-    let setup = GekisouSetup { fevers: vec![(START, END); 4], missions: vec![1, 3, 4, 1] };
+    let setup = GekisouSetup {
+        rank_percents: None,
+        timing_error: None,
+        fevers: vec![(START, END); 4],
+        missions: vec![1, 3, 4, 1],
+    };
     let mut lm = LiveModel::new_gekisou_external(&m, &[], &notes, &events, params(&notes), &setup).unwrap();
     for idx in 0..4 {
         lm.queue_gekisou_rank_confirmation(idx, idx as i32 + 1, 100).unwrap();
@@ -453,7 +465,7 @@ fn external_completion_keeps_controller_score_snapshots_and_current_score() {
     let m = master();
     let (notes, events) = chart();
     let (p, dts) = play(&notes, |_| 6);
-    let setup = GekisouSetup { fevers: vec![(START, END)], missions: vec![3] };
+    let setup = GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(START, END)], missions: vec![3] };
     let mut lm = LiveModel::new_gekisou_external(&m, &[], &notes, &events, params(&notes), &setup).unwrap();
     let mut start_score = None;
     let mut end_score = None;
@@ -495,7 +507,8 @@ fn fixed_rank_solo_adapter_matches_solo_at_rank_one() {
     let m = master();
     let (notes, events) = chart();
     let (p, dts) = play(&notes, |_| 6);
-    let setup = GekisouSetup { fevers: vec![(START, END)], missions: vec![3, 3, 3] };
+    let setup =
+        GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(START, END)], missions: vec![3, 3, 3] };
     let mut solo = LiveModel::new_gekisou(&m, &[], &notes, &events, params(&notes), &setup).unwrap();
     let mut ranked = LiveModel::new_gekisou_ranked(&m, &[], &notes, &events, params(&notes), &setup).unwrap();
     ranked.queue_gekisou_rank_confirmation(0, 1, RANK_PCT).unwrap();
@@ -513,7 +526,8 @@ fn fixed_rank_solo_adapter_keeps_solo_first_completion_per_frame() {
     let m = master();
     let (notes, events) = chart();
     let (p, dts) = play(&notes, |_| 6);
-    let setup = GekisouSetup { fevers: vec![(START, END); 3], missions: vec![3; 3] };
+    let setup =
+        GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(START, END); 3], missions: vec![3; 3] };
     let mut solo = LiveModel::new_gekisou(&m, &[], &notes, &events, params(&notes), &setup).unwrap();
     let mut ranked = LiveModel::new_gekisou_ranked(&m, &[], &notes, &events, params(&notes), &setup).unwrap();
     for range in 0..3 {
@@ -532,7 +546,8 @@ fn frame_result_score_retains_pre_ranking_value_while_calculator_rewinds() {
     let m = master();
     let (notes, events) = chart();
     let (p, dts) = play(&notes, |_| 6);
-    let setup = GekisouSetup { fevers: vec![(START, END)], missions: vec![3; 3] };
+    let setup =
+        GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(START, END)], missions: vec![3; 3] };
     let mut solo = LiveModel::new_gekisou(&m, &[], &notes, &events, params(&notes), &setup).unwrap();
     let mut unranked = LiveModel::new_gekisou_external(&m, &[], &notes, &events, params(&notes), &setup).unwrap();
     let mut completed = false;

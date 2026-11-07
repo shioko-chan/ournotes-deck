@@ -29,7 +29,7 @@ fn timing_master() -> Master {
 }
 
 fn setup(fevers: &[(i32, i32)], missions: &[i64]) -> GekisouSetup {
-    GekisouSetup { fevers: fevers.to_vec(), missions: missions.to_vec() }
+    GekisouSetup { rank_percents: None, timing_error: None, fevers: fevers.to_vec(), missions: missions.to_vec() }
 }
 
 fn chart(notes: &[(i32, i32)], events: &[i32]) -> Chart {

@@ -150,7 +150,8 @@ fn production_probability_chain_without_luck_mission_plays_lottery_free() {
         score_music_length_ms: None,
         assist_factor: 1.0,
     };
-    let setup = GekisouSetup { fevers: vec![(150, 400)], missions: vec![1, 3, 1] };
+    let setup =
+        GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(150, 400)], missions: vec![1, 3, 1] };
     let mut native = LiveModel::new_gekisou(&data.master, &[performer], &[], &[], params, &setup).unwrap();
     for frame in 0..70 {
         native.frame_timed(frame * 20, &[], 0.02).unwrap();
@@ -2554,3 +2555,6 @@ mod maximum_matrix;
 mod maximum_mode_support;
 #[path = "fixtures/maximum_power_cap.rs"]
 mod maximum_power_cap;
+
+#[path = "fixtures/arena_extensions.rs"]
+mod arena_extensions;

@@ -50,7 +50,7 @@ fn tighten_maximum_caps(
 
 /// The evaluation of a team from the exact payoffs of its orders (those a strict bound omitted are absent): the
 /// greatest payoff over denominator one is the team's payoff.
-fn aggregate_maximum(outcomes: Vec<SeedOutcome>) -> Result<FiniteEvaluation, Error> {
+pub(in crate::search) fn aggregate_maximum(outcomes: Vec<SeedOutcome>) -> Result<FiniteEvaluation, Error> {
     let best = outcomes.iter().map(|outcome| outcome.terminal_payoff).max();
     let mut evaluation = expectation::aggregate(outcomes)?;
     evaluation.expected_payoff = expectation::ExactExpectation {

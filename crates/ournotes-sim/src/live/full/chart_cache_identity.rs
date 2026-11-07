@@ -119,6 +119,7 @@ fn initialized_identity(
 ) -> Option<Vec<u8>> {
     if model.program_has_started
         || model.raw_runtime.is_some()
+        || model.timing_error.is_some()
         || !model.enabled_live.is_empty()
         || !model.guards.is_empty()
         || !model.life_reductions.is_empty()
@@ -326,7 +327,12 @@ mod tests {
                     assist_factor: 1.0,
                     skill_target_music_type: 0,
                 },
-                setup: GekisouSetup { fevers: vec![(0, 200)], missions: vec![2, 2, 2] },
+                setup: GekisouSetup {
+                    rank_percents: None,
+                    timing_error: None,
+                    fevers: vec![(0, 200)],
+                    missions: vec![2, 2, 2],
+                },
                 play: LivePlay {
                     base_seed: 0,
                     frames: vec![

@@ -55,7 +55,8 @@ fn mission_all_takes_the_combo_list_place_and_keeps_its_own_gate() {
     // members in skill order: JustCount, All, Luck, Combo (the last one with a Gekisou support skill)
     let mut deck = vec![gk(3), gk(4), gk(2), gk(1)];
     deck[3].gekisou_support_skills = vec![(1, 1)];
-    let setup = GekisouSetup { fevers: vec![(100, 200)], missions: vec![1, 2, 3] };
+    let setup =
+        GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(100, 200)], missions: vec![1, 2, 3] };
     let lm = LiveModel::new_gekisou(&m, &deck, &[], &[], params(), &setup).unwrap();
     let order: Vec<(usize, i64, Option<i64>)> =
         lm.cond.iter().map(|c| (c.member, c.skill_type, c.updater.gate_mission())).collect();

@@ -165,7 +165,11 @@ impl LiveModel {
         results.clear();
         for j in judged {
             let n = *self.notes.get(&j.note_id).ok_or_else(|| Error::Input(format!("unknown note {}", j.note_id)))?;
-            let conv = self.conversion.convert(j.judgement, n.judgement_type, j.judgement_time_ms)?;
+            let judgement = self
+                .timing_error
+                .as_mut()
+                .map_or(j.judgement, |timing| timing.judgement(n.judgement_type, j.judgement_time_ms, j.judgement));
+            let conv = self.conversion.convert(judgement, n.judgement_type, j.judgement_time_ms)?;
             self.combo.add_judgement(n.time_ms, conv)?;
             results.push((n, conv));
             self.judged.push((n.note_id, conv, n.time_ms));

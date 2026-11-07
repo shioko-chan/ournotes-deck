@@ -248,6 +248,10 @@ impl LiveModel {
             gk,
             gk_appliers: GkAppliers::default(),
             raw_runtime: None,
+            timing_error: setup
+                .and_then(|s| s.timing_error.map(|config| (s, config)))
+                .map(|(s, config)| timing_error::Runtime::new(master, s, config))
+                .transpose()?,
             raw_pending: None,
             frame_rank_confirmation: None,
             rank_timeline: Vec::new(),
@@ -286,7 +290,7 @@ impl LiveModel {
             rush_percent,
             after,
         )?;
-        let factors = if external_ranking {
+        let mut factors = if external_ranking {
             [[0; 5]; 3]
         } else {
             let [m0, m1, m2] = match setup.missions.get(..3) {
@@ -295,6 +299,16 @@ impl LiveModel {
             };
             gekisou::ranking_factors(master, gekisou::mission_pattern(m0, m1, m2))?
         };
+        if let Some(percents) = setup.rank_percents {
+            if external_ranking || percents.iter().any(|&p| !(0..=i32::MAX as i64).contains(&p)) {
+                return Err(Error::Input(
+                    "solo rank percentages require nonnegative i32 values and solo ranking".into(),
+                ));
+            }
+            for (row, percent) in factors.iter_mut().zip(percents) {
+                row[0] = percent;
+            }
+        }
         Ok(GekisouLive {
             ctrl,
             fever: FeverUpdater::new(&setup.fevers),

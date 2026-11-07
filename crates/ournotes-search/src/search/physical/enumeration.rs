@@ -52,6 +52,19 @@ fn snaps_rec(slot: usize, p: &mut PhysicalDeck, snaps: &[usize], e: &mut Engine<
     if e.expired() {
         return Ok(false);
     }
+    let missing = e
+        .request
+        .constraints
+        .include_snaps
+        .iter()
+        .copied()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .filter(|id| !p.snaps[..slot].iter().flatten().any(|&s| e.pool.snaps[s].id == *id))
+        .count();
+    if missing > 5 - slot {
+        return Ok(true);
+    }
     if slot == 5 {
         return e.consider(*p);
     }

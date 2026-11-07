@@ -63,7 +63,7 @@ impl DependencyCase {
         params.music_length_ms = 4200;
         Self {
             master, notes, params,
-            setup: GekisouSetup { fevers: vec![(100, 400), (1400, 1900), (2800, 3200)], missions: vec![3, 2, 1] },
+            setup: GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(100, 400), (1400, 1900), (2800, 3200)], missions: vec![3, 2, 1] },
             play: LivePlay { frames, base_seed: 0 }, deltas,
             deck: [Performer {
                 support_skills: vec![(901, 1), (902, 1), (903, 1)],

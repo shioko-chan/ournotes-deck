@@ -203,7 +203,12 @@ mod tests {
             let rule = kind.gekisou().then(|| {
                 JustRule::new(
                     &data.master,
-                    &ournotes_sim::live::full::GekisouSetup { fevers: dc.fevers.clone(), missions: vec![3, 1, 1] },
+                    &ournotes_sim::live::full::GekisouSetup {
+                        rank_percents: None,
+                        timing_error: None,
+                        fevers: dc.fevers.clone(),
+                        missions: vec![3, 1, 1],
+                    },
                 )
                 .unwrap()
             });

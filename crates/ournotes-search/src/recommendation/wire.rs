@@ -141,6 +141,7 @@ pub(super) struct RoomWire {
 pub(super) struct ConstraintsWire {
     pub(super) leader: Option<i64>,
     pub(super) include_members: Vec<i64>,
+    pub(super) include_snaps: Vec<i64>,
     pub(super) exclude_members: Vec<i64>,
     pub(super) exclude_snaps: Vec<i64>,
     pub(super) no_snaps: bool,
@@ -151,4 +152,16 @@ pub(super) struct ConstraintsWire {
 pub(super) struct LimitsWire {
     #[serde(default)]
     pub(super) time_limit_ms: Option<u64>,
+}
+
+#[cfg(test)]
+mod arena_constraints_tests {
+    use super::*;
+    #[test]
+    fn include_snaps_is_a_strict_optional_id_list() {
+        let constraints: ConstraintsWire = serde_json::from_str(r#"{"includeSnaps":[12,12,34]}"#).unwrap();
+        assert_eq!(constraints.include_snaps, [12, 12, 34]);
+        assert!(serde_json::from_str::<ConstraintsWire>("{}").unwrap().include_snaps.is_empty());
+        assert!(serde_json::from_str::<ConstraintsWire>(r#"{"includeSnaps":[1.5]}"#).is_err());
+    }
 }

@@ -200,6 +200,15 @@ impl Engine<'_, '_> {
     ) -> Result<bool, Error> {
         self.tel.leaves.proposed += 1;
         self.offered = None;
+        if self
+            .request
+            .constraints
+            .include_snaps
+            .iter()
+            .any(|id| !physical.snaps.iter().flatten().any(|&s| self.pool.snaps[s].id == *id))
+        {
+            return Ok(true);
+        }
         if self.expired() {
             return Ok(false);
         }
@@ -227,7 +236,10 @@ impl Engine<'_, '_> {
         let power = self.pool.deck_power(&physical.as_deck(), self.song, self.event)?.power();
         let evaluation = if self.live {
             // A certified frontier reduces the orders by its own reduction ([`CertifiedState::reduction`]).
-            let leaf = if self.aggregation == Aggregation::Maximum && self.certified.is_none() {
+            let leaf = if self.aggregation == Aggregation::Maximum
+                && self.certified.is_none()
+                && !self.request.objective.context().is_some_and(|c| c.gekisou.timing_error.is_some())
+            {
                 self.evaluate_maximum(&physical, power, cut)?
             } else {
                 self.evaluate_orders(&physical, power, cut)?

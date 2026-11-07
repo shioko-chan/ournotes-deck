@@ -484,8 +484,15 @@ where
     }
     let mut deck = PhysicalDeck { members: [0; 5], snaps: [None; 5] };
     let m = Members { pool, candidates: &candidates, required: &allowed.required, leader: allowed.leader };
-    member_rec(0, &mut deck, &m, &snaps, &mut count, &mut visit)?;
-    Ok(count)
+    let mut accepted = 0;
+    member_rec(0, &mut deck, &m, &snaps, &mut count, &mut |deck| {
+        if constraints.include_snaps.iter().any(|id| !deck.snaps.iter().flatten().any(|&s| pool.snaps[s].id == *id)) {
+            return Ok(true);
+        }
+        accepted += 1;
+        visit(deck)
+    })?;
+    Ok(accepted)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

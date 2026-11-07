@@ -112,7 +112,7 @@ fn play() -> LivePlay {
 }
 
 fn setup(fevers: &[(i32, i32)]) -> GekisouSetup {
-    GekisouSetup { fevers: fevers.to_vec(), missions: vec![1, 1, 1] }
+    GekisouSetup { rank_percents: None, timing_error: None, fevers: fevers.to_vec(), missions: vec![1, 1, 1] }
 }
 
 fn run(t: &Value, deck: &[Performer], gk: Option<&GekisouSetup>) -> Result<(i32, Vec<i32>), Error> {

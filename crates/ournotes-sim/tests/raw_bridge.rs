@@ -35,7 +35,12 @@ fn build_with_note_type(skills: &[i64], gekisou: bool, note_operate_type: i32) -
         assist_factor: 1.0,
     };
     let mut model = if gekisou {
-        let setup = GekisouSetup { fevers: vec![(20000, 21000)], missions: vec![1, 2, 3] };
+        let setup = GekisouSetup {
+            rank_percents: None,
+            timing_error: None,
+            fevers: vec![(20000, 21000)],
+            missions: vec![1, 2, 3],
+        };
         LiveModel::new_gekisou(&master, &deck, &notes, &events, params, &setup).unwrap()
     } else {
         LiveModel::new(&master, &deck, &notes, &events, params).unwrap()

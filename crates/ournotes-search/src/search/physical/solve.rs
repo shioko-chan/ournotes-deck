@@ -303,6 +303,8 @@ pub(crate) fn solve_physical_impl(
                 // A target or cap bounds every order's payoff by one common value: teams ranked by power then
                 // settle the search as soon as K of them attain it.
                 if !ranked
+                    && request.constraints.include_snaps.is_empty()
+                    && !request.objective.context().is_some_and(|c| c.gekisou.timing_error.is_some())
                     && matches!(strategy, Strategy::BranchAndBound)
                     && matches!(
                         metric,
@@ -504,7 +506,7 @@ pub(crate) fn solve_physical_impl(
             Strategy::Candidate { power_seeds, proposals, proposal_seed } => {
                 engine.tel.environment.traversal = Traversal::Candidate;
                 engine.rec.begin(&mut engine.tel, "warmStart", None);
-                if *power_seeds > 0 && !engine.expired() {
+                if *power_seeds > 0 && request.constraints.include_snaps.is_empty() && !engine.expired() {
                     let power = Objective::Power { music_id: None, event };
                     let power = match request.objective.context() {
                         Some(c) => power.in_scenario(c.clone()),

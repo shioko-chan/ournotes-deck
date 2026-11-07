@@ -256,6 +256,42 @@ impl Engine<'_, '_> {
         power: i32,
         cut: Option<(&crate::search::joint::JointBounds, &crate::domain::CandidateDomain)>,
     ) -> Result<Leaf, Error> {
+        if self.request.objective.context().is_some_and(|c| c.gekisou.timing_error.is_some()) {
+            // Judgements depend on this deck's active windows. Static-stream bounds,
+            // rotation splices and power-parametric programs do not establish this law.
+            let mut input = expectation::context(self.pool, physical, &self.request.objective)?;
+            input.lottery_free = self.lottery_free.clone();
+            if let Some(v) = self.simulation.music_length_ms {
+                input.params.music_length_ms = v;
+            }
+            if let Some(v) = self.simulation.score_music_length_ms {
+                input.params.score_music_length_ms = Some(v);
+            }
+            self.tel.leaves.started += 1;
+            let mut outcomes = Vec::with_capacity(self.orders.len());
+            for order in self.orders.clone() {
+                if self.expired() {
+                    return Ok(Leaf::Stopped);
+                }
+                let out = input.simulate_performance_order(self.pool.master, order)?;
+                self.tel.leaves.simulations += 1;
+                if out.model.draws() != 0 {
+                    return Err(Error::Unsupported("timingError does not support lottery-dependent skills".into()));
+                }
+                outcomes.push(SeedOutcome {
+                    root_seed: 0,
+                    weight: 1,
+                    performance_order: order,
+                    final_score: out.final_score,
+                    terminal_payoff: self.payoff(physical, out.final_score, power, Some(out.model.current_life()))?,
+                });
+            }
+            return Ok(Leaf::Evaluated(if self.aggregation == Aggregation::Maximum {
+                super::maximum::aggregate_maximum(outcomes)?
+            } else {
+                expectation::aggregate(outcomes)?
+            }));
+        }
         if self.certified.is_some() {
             // The caps prove a team below the K-th whether or not its scores are cached.
             let maximum = self.certified.as_ref().is_some_and(|state| state.reduction == Reduction::Maximum);

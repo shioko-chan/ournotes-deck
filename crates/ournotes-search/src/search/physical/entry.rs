@@ -50,6 +50,7 @@ impl Entry {
         });
         if matches!(metric, Metric::Power) {
             return Ok(RecommendedDeck {
+                gekisou_ranges: None,
                 members: self.members,
                 snaps: self.snaps,
                 power: self.power,
@@ -89,6 +90,7 @@ impl Entry {
                 payoff: o.terminal_payoff.div_euclid(unit).to_string(),
             });
         Ok(RecommendedDeck {
+            gekisou_ranges: None,
             members: self.members,
             snaps: self.snaps,
             power: self.power,

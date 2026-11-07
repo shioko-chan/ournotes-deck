@@ -325,7 +325,8 @@ impl LiveModel {
         if self.program_has_started {
             return Err(Error::Input("score program requires a fresh LiveModel".into()));
         }
-        if self.raw_runtime.is_some()
+        if self.timing_error.is_some()
+            || self.raw_runtime.is_some()
             || self.raw_pending.is_some()
             || self.is_live_finished
             || self.prev_confirmed_rank.is_some()
@@ -1060,7 +1061,12 @@ mod tests {
             gekisou_support_skills: vec![(4, 1)],
             ..Default::default()
         }];
-        let setup = GekisouSetup { fevers: vec![(120, 600)], missions: vec![mission; 3] };
+        let setup = GekisouSetup {
+            rank_percents: None,
+            timing_error: None,
+            fevers: vec![(120, 600)],
+            missions: vec![mission; 3],
+        };
         let model = if external {
             LiveModel::new_gekisou_external(&master, &deck, &notes, &[(0, 150)], params, &setup)
         } else if mission != 0 {

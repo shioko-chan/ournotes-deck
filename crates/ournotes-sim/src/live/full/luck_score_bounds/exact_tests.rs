@@ -114,7 +114,7 @@ pub(super) fn fixture_with_probes(
         score_music_length_ms: None,
         assist_factor: 1.0,
     };
-    let setup = GekisouSetup { fevers, missions: vec![2, 2, 2] };
+    let setup = GekisouSetup { rank_percents: None, timing_error: None, fevers, missions: vec![2, 2, 2] };
     let frames: Vec<_> = (0..=music_length_ms / step)
         .map(|i| PlayFrame {
             time_ms: i * step,

@@ -159,6 +159,8 @@ pub struct Constraints {
     pub leader: Option<i64>,
     /// Member card ids every deck must contain.
     pub include_members: Vec<i64>,
+    /// Snap ids every deck must contain (duplicates are ignored).
+    pub include_snaps: Vec<i64>,
     pub exclude_members: Vec<i64>,
     pub exclude_snaps: Vec<i64>,
     /// Decks without snaps.
@@ -253,6 +255,12 @@ pub(crate) fn resolve_allowed(pool: &Pool, c: &Constraints) -> Result<(Allowed, 
             Some(i)
         }
     };
+    for &id in &c.include_snaps {
+        pool.snap_index(id).ok_or_else(|| Error::Input(format!("snap {id} is not in the roster")))?;
+        if c.no_snaps || c.exclude_snaps.contains(&id) {
+            return Err(Error::Input(format!("snap {id} is both required and excluded")));
+        }
+    }
     let mut snaps: Vec<usize> = Vec::new();
     if !c.no_snaps {
         for (i, s) in pool.snaps.iter().enumerate() {
@@ -527,6 +535,9 @@ pub fn search(pool: &Pool, req: &SearchRequest) -> Result<SearchOutcome, Error> 
 pub fn search_best_order_diagnostic(pool: &Pool, req: &SearchRequest) -> Result<SearchOutcome, Error> {
     if req.k == 0 {
         return Err(Error::Input("k must be positive".into()));
+    }
+    if !req.constraints.include_snaps.is_empty() {
+        return Err(Error::Unsupported("includeSnaps requires the physical recommendation search".into()));
     }
     let t0 = budget::now();
     let budget = SearchBudget::new(t0, req.time_limit)?;

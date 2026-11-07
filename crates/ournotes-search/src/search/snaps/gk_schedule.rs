@@ -82,6 +82,9 @@ impl Schedule {
                     pct = r.score_bonus_percent;
                 }
             }
+            if let Some(percents) = g.setup.rank_percents {
+                pct = percents.get(i).copied().unwrap_or(0);
+            }
             if let Some(confirmations) = &g.confirmations {
                 pct = confirmations.iter().find(|c| c.range == i).map_or(0, |c| c.percent);
             }

@@ -20,7 +20,8 @@ fn model(mission: i64, force: bool) -> LiveModel {
         score_music_length_ms: None,
         assist_factor: 1.0,
     };
-    let setup = GekisouSetup { fevers: vec![(100, 200)], missions: vec![mission; 3] };
+    let setup =
+        GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(100, 200)], missions: vec![mission; 3] };
     let mut model = LiveModel::new_gekisou(&master, &[], &[note], &[], params, &setup).unwrap();
     let mut just = TimingUnit::new(6, 2, 2);
     just.enabled = force;

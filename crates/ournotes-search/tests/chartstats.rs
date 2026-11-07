@@ -482,7 +482,12 @@ fn aptitude_run(
     perfect: bool,
 ) -> (i32, Vec<full::GekisouRange>) {
     let chart = d.chart(1004).unwrap();
-    let setup = GekisouSetup { fevers: d.charts[0].fevers.clone(), missions: vec![1, 2, 3] };
+    let setup = GekisouSetup {
+        rank_percents: None,
+        timing_error: None,
+        fevers: d.charts[0].fevers.clone(),
+        missions: vec![1, 2, 3],
+    };
     let rule = JustRule::new(&d.master, &setup).unwrap();
     let mut stream = JudgementStream::theoretical_best_gekisou(&chart, &d.charts[0].judgement_types, &rule).unwrap();
     if perfect {
@@ -638,7 +643,12 @@ fn chance_mean(
     let chart = d.chart(1004).unwrap();
     let notes = notes_of(d);
     let events: Vec<_> = chart.skill_events.iter().map(|event| (event.index, event.time_ms)).collect();
-    let setup = GekisouSetup { fevers: d.charts[0].fevers.clone(), missions: missions.into() };
+    let setup = GekisouSetup {
+        rank_percents: None,
+        timing_error: None,
+        fevers: d.charts[0].fevers.clone(),
+        missions: missions.into(),
+    };
     let rule = JustRule::new(&d.master, &setup).unwrap();
     let mut stream = JudgementStream::theoretical_best_gekisou(&chart, &d.charts[0].judgement_types, &rule).unwrap();
     if perfect {
@@ -867,7 +877,12 @@ fn chance_lottery_mean(d: &DeckData, active: Option<bool>, plain_position: Optio
     let chart = d.chart(1004).unwrap();
     let notes = notes_of(d);
     let events: Vec<_> = chart.skill_events.iter().map(|event| (event.index, event.time_ms)).collect();
-    let setup = GekisouSetup { fevers: d.charts[0].fevers.clone(), missions: vec![2, 1, 3] };
+    let setup = GekisouSetup {
+        rank_percents: None,
+        timing_error: None,
+        fevers: d.charts[0].fevers.clone(),
+        missions: vec![2, 1, 3],
+    };
     let rule = JustRule::new(&master, &setup).unwrap();
     let stream = JudgementStream::theoretical_best_gekisou(&chart, &d.charts[0].judgement_types, &rule).unwrap();
     assert!(stream.judged.iter().all(|judgement| judgement[2] != 6));

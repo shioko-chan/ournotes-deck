@@ -69,7 +69,12 @@ fn uncertified_timers_allow_reexecution_from_frame_zero() {
     distant_event.events[0].1 = (1 << 24) + 1;
     let mut distant_range = ordinary.clone();
     distant_range.set_gekisou(
-        GekisouSetup { fevers: vec![(0, (1 << 24) + 1)], missions: vec![MISSION_COMBO] },
+        GekisouSetup {
+            rank_percents: None,
+            timing_error: None,
+            fevers: vec![(0, (1 << 24) + 1)],
+            missions: vec![MISSION_COMBO],
+        },
         vec![0.04; 4],
         vec![0],
     );
@@ -143,7 +148,16 @@ fn timer_horizon_uses_native_binary32_duration_and_the_play_clock() {
 #[test]
 fn range_start_release_timers_keep_compact_floors_when_covering_the_next_frame() {
     let mut s = setup();
-    s.set_gekisou(GekisouSetup { fevers: vec![(30, 100)], missions: vec![MISSION_COMBO] }, vec![0.04; 4], vec![0]);
+    s.set_gekisou(
+        GekisouSetup {
+            rank_percents: None,
+            timing_error: None,
+            fevers: vec![(30, 100)],
+            missions: vec![MISSION_COMBO],
+        },
+        vec![0.04; 4],
+        vec![0],
+    );
     let mut r = row();
     r.gk = true;
     r.release = 1;
@@ -157,19 +171,41 @@ fn range_start_release_timers_keep_compact_floors_when_covering_the_next_frame()
     r.act = 0.049;
     assert_eq!(command_floor_times(&s, [&r].into_iter(), |_| true), [0; 4]);
     // a start on a frame time triggers in that frame
-    s.set_gekisou(GekisouSetup { fevers: vec![(40, 100)], missions: vec![MISSION_COMBO] }, vec![0.04; 4], vec![0]);
+    s.set_gekisou(
+        GekisouSetup {
+            rank_percents: None,
+            timing_error: None,
+            fevers: vec![(40, 100)],
+            missions: vec![MISSION_COMBO],
+        },
+        vec![0.04; 4],
+        vec![0],
+    );
     r.act = 0.04;
     assert_eq!(command_floor_times(&s, [&r].into_iter(), |_| true), [0, 0, 40, 80]);
     r.act = 0.039;
     assert_eq!(command_floor_times(&s, [&r].into_iter(), |_| true), [0; 4]);
     // without a frame after the trigger frame no timed finish is filed; every range is checked
     let fevers = vec![(30, 50), (90, 110)];
-    s.set_gekisou(GekisouSetup { fevers, missions: vec![MISSION_COMBO; 2] }, vec![0.04; 4], vec![0]);
+    s.set_gekisou(
+        GekisouSetup { rank_percents: None, timing_error: None, fevers, missions: vec![MISSION_COMBO; 2] },
+        vec![0.04; 4],
+        vec![0],
+    );
     r.act = 0.001;
     assert_eq!(command_floor_times(&s, [&r].into_iter(), |_| true), [0; 4]);
     r.act = 0.05;
     assert_eq!(command_floor_times(&s, [&r].into_iter(), |_| true), [0, 0, 40, 80]);
-    s.set_gekisou(GekisouSetup { fevers: vec![(90, 110)], missions: vec![MISSION_COMBO] }, vec![0.04; 4], vec![0]);
+    s.set_gekisou(
+        GekisouSetup {
+            rank_percents: None,
+            timing_error: None,
+            fevers: vec![(90, 110)],
+            missions: vec![MISSION_COMBO],
+        },
+        vec![0.04; 4],
+        vec![0],
+    );
     r.act = 0.001;
     assert_eq!(command_floor_times(&s, [&r].into_iter(), |_| true), [0, 0, 40, 80]);
 }

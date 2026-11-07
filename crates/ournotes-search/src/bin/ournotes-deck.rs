@@ -276,6 +276,8 @@ fn run(args: &[String]) -> Result<serde_json::Value, String> {
         Some(p) => serde_json::from_str(&read(&p)?)
             .map_err(|e| format!("context: {e}; dates must be normalized DateTime ticks, not assumed-JST strings"))?,
         None => ContextInput {
+            gekisou_rank_percents: None,
+            gekisou_range_diagnostics: false,
             power_snapshot: PowerSnapshotInput { event_ids: roster.player.events.clone(), captured_jst_ticks: None },
             result_clock: None,
             event_payoff: None,

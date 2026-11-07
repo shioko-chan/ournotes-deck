@@ -130,6 +130,8 @@ fn oracle(data: &DeckData, resolved: &ResolvedOwnedSnapshot, request: &Recommend
         snaps.extend(resolved.snapshot().eligible.snaps.iter().map(|card| Some(card.id)));
     }
     let context = ContextInput {
+        gekisou_rank_percents: None,
+        gekisou_range_diagnostics: false,
         power_snapshot: PowerSnapshotInput { event_ids: vec![], captured_jst_ticks: None },
         result_clock: None,
         event_payoff: None,

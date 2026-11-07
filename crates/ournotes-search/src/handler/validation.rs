@@ -186,6 +186,7 @@ pub(crate) fn goal_description(r: &RecommendationRequest) -> Result<GoalDescript
     if let Execution::Live { play, .. } = &r.execution {
         assumptions.push(match play {
             PlayPolicy::TheoreticalBest => "chosen theoretical AP/Just play; not predicted player performance",
+            PlayPolicy::TimingError { .. } => "deterministic timing-error dither with active 4004 windows; not a probabilistic expectation",
             PlayPolicy::Accuracy(_) => "chosen theoretical play with declared Great/Just shares spread evenly; not predicted player performance",
             PlayPolicy::Stream { .. } => {
                 "complete declared judgement stream; touch timing and human error distribution not inferred"

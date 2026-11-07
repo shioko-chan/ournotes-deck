@@ -59,7 +59,8 @@ fn fixture(
         score_music_length_ms: None,
         assist_factor: 1.0,
     };
-    let setup = GekisouSetup { fevers: vec![(100, 1300)], missions: vec![2, 2, 2] };
+    let setup =
+        GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(100, 1300)], missions: vec![2, 2, 2] };
     let frames = (0..=22)
         .map(|i| PlayFrame {
             time_ms: i * 100,

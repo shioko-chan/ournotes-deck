@@ -47,6 +47,12 @@ impl LiveModel {
             // Gekisou controller): the applier controller skips an effect state whose type has no applier.
             return Ok(());
         }
+        if effect_type == 4004
+            && let Some(timing) = self.timing_error.as_mut()
+        {
+            timing.windows.update_effect(key, st.state, &self.rows[ri])?;
+            return Ok(());
+        }
         if matches!(effect_type, 4000..=4004 | 13001)
             && let Some(runtime) = self.raw_runtime.as_mut()
         {

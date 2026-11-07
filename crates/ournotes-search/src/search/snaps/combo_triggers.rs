@@ -358,7 +358,8 @@ mod tests {
             skill_target_music_type: 0,
             assist_factor: 1.0,
         };
-        let setup = GekisouSetup { fevers: vec![(0, 500)], missions: vec![1, 1, 1] };
+        let setup =
+            GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(0, 500)], missions: vec![1, 1, 1] };
         let mut model = LiveModel::new_gekisou(&master, &deck, &notes, &[], params, &setup).unwrap();
         model.frame_timed(0, &[], 0.0).unwrap();
         for (i, t) in [40, 80].into_iter().enumerate() {

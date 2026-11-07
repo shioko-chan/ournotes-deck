@@ -422,6 +422,11 @@ pub(super) fn parse_request(data: &DeckData, w: RequestWire, issues: &mut Issues
             );
         }
     }
+    for (i, id) in c.include_snaps.iter().enumerate() {
+        if c.no_snaps || c.exclude_snaps.contains(id) {
+            issues.add(format!("constraints.includeSnaps[{i}]"), "input", format!("snap {id} is also excluded"));
+        }
+    }
     let k = w.k.unwrap_or(DEFAULT_K as i64);
     if !(1..=MAX_K as i64).contains(&k) {
         issues.add("k", "input", format!("k must be in 1..={MAX_K}"));
@@ -574,6 +579,8 @@ pub(super) fn parse_request(data: &DeckData, w: RequestWire, issues: &mut Issues
         execution,
         scenario,
         context: Some(ContextInput {
+            gekisou_rank_percents: None,
+            gekisou_range_diagnostics: false,
             power_snapshot: PowerSnapshotInput { event_ids, captured_jst_ticks: None },
             result_clock,
             event_payoff,
@@ -584,6 +591,7 @@ pub(super) fn parse_request(data: &DeckData, w: RequestWire, issues: &mut Issues
         constraints: Constraints {
             leader: c.leader,
             include_members: c.include_members,
+            include_snaps: c.include_snaps,
             exclude_members: Vec::new(),
             exclude_snaps: Vec::new(),
             no_snaps: c.no_snaps,

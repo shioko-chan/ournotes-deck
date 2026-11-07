@@ -203,7 +203,8 @@ fn fixture(result: i64, base: i64) -> (Master, Vec<LiveNote>, LiveParams, Gekiso
         score_music_length_ms: None,
         assist_factor: 1.0,
     };
-    let setup = GekisouSetup { fevers: vec![(100, 500)], missions: vec![2, 2, 2] };
+    let setup =
+        GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(100, 500)], missions: vec![2, 2, 2] };
     let mut frames: Vec<_> = (0..=20).map(|i| PlayFrame { time_ms: i * 100, judged: Vec::new() }).collect();
     for note in &notes {
         frames.iter_mut().find(|frame| frame.time_ms >= note.time_ms).unwrap().judged.push(JudgedNote {

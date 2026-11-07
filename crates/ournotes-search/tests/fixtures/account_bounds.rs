@@ -39,6 +39,7 @@ fn fixture() -> (Parsed, RecommendationOutcome) {
         telemetry: Default::default(),
         elapsed_ms: 0.0,
         results: vec![RecommendedDeck {
+            gekisou_ranges: None,
             members: [1, 2, 3, 4, 5],
             snaps: [None; 5],
             power: 100,

@@ -46,7 +46,8 @@ fn owner_order_fixture() -> OwnerOrderFixture {
     params.music_length_ms = 4000;
     params.total_power = 1894;
     params.converted_note_count = 2;
-    let setup = GekisouSetup { fevers: vec![(100, 2000)], missions: vec![2, 2, 2] };
+    let setup =
+        GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(100, 2000)], missions: vec![2, 2, 2] };
     let frames = (0..=40)
         .map(|i| PlayFrame {
             time_ms: i * 100,

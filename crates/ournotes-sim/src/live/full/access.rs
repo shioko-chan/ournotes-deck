@@ -275,6 +275,11 @@ impl LiveModel {
         self.score.rank_bonus
     }
 
+    /// Actual Just judgements by range, excluding skill-added counts (13000/13002).
+    pub fn gekisou_raw_just_counts(&self) -> Vec<i32> {
+        self.gk.as_ref().map_or_else(Vec::new, |g| g.ctrl.states.iter().map(|s| s.raw_just).collect())
+    }
+
     /// The Gekisou ranges (empty without Gekisou).
     pub fn gekisou_ranges(&self) -> Vec<GekisouRange> {
         let Some(gk) = &self.gk else { return Vec::new() };

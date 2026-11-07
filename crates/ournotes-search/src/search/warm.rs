@@ -581,6 +581,8 @@ mod tests {
         .unwrap();
         let stream = JudgementStream::theoretical_best(&chart);
         let context = ContextInput {
+            gekisou_rank_percents: None,
+            gekisou_range_diagnostics: false,
             power_snapshot: PowerSnapshotInput { event_ids: vec![], captured_jst_ticks: None },
             result_clock: None,
             event_payoff: None,

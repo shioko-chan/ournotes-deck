@@ -87,6 +87,53 @@ pub(crate) fn execute(
             None,
         )?
     };
+    if context_input.gekisou_range_diagnostics {
+        for deck in &mut out.results {
+            let Some(order) = &deck.best_order else { continue };
+            let resolved = pool.deck(deck.members, deck.snaps, order.performance_order)?;
+            let physical = PhysicalDeck { members: resolved.members, snaps: resolved.snaps };
+            let mut input = super::expectation::context(pool, &physical, &request.objective)?;
+            if input.gekisou.is_none() {
+                continue;
+            }
+            if super::physical::certified_engine::lottery_mode(pool, request, &ctx.plan.domain)?
+                == super::physical::certified_engine::LotteryMode::Certified
+            {
+                // Lottery expectations do not have one realized controller state.
+                continue;
+            }
+            if let Some(v) = r.simulation.music_length_ms {
+                input.params.music_length_ms = v;
+            }
+            if let Some(v) = r.simulation.score_music_length_ms {
+                input.params.score_music_length_ms = Some(v);
+            }
+            if super::physical::certified_engine::lottery_mode(pool, request, &ctx.plan.domain)?
+                == super::physical::certified_engine::LotteryMode::Free
+            {
+                input.lottery_free = Some(std::sync::Arc::new(ournotes_sim::live::full::luck_skills(pool.master)?));
+            }
+            let result = input.simulate_performance_order(pool.master, order.performance_order)?;
+            deck.gekisou_ranges = Some(
+                result
+                    .model
+                    .gekisou_ranges()
+                    .iter()
+                    .enumerate()
+                    .map(|(i, range)| GekisouRangeDiagnostic {
+                        range_index: i,
+                        mission: range.mission,
+                        score: range.end_score.wrapping_sub(range.start_score),
+                        rank_percent: result.model.gekisou_rank_bonuses().iter().find(|b| b.0 == i).map(|b| b.3),
+                        combo: range.combo,
+                        max_combo: range.max_combo,
+                        just_count: range.just_count,
+                        raw_just: result.model.gekisou_raw_just_counts()[i],
+                    })
+                    .collect(),
+            );
+        }
+    }
     finish(&mut out, built, fixed.is_some(), start, build_ms);
     Ok(out)
 }

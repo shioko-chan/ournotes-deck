@@ -12,6 +12,7 @@ pub struct CandidateDomain {
     members: Vec<usize>,
     snaps: Vec<usize>,
     required: Vec<usize>,
+    required_snaps: Vec<usize>,
     leader: Option<usize>,
     allowed_members: Vec<bool>,
     feasible: bool,
@@ -27,10 +28,23 @@ impl CandidateDomain {
         {
             required.push(leader);
         }
-        let feasible = required.len() <= 5
+        let mut required_snaps: Vec<_> =
+            constraints.include_snaps.iter().map(|&id| pool.snap_index(id).expect("validated Snap")).collect();
+        required_snaps.sort_unstable();
+        required_snaps.dedup();
+        let feasible = required_snaps.len() <= 5
+            && required.len() <= 5
             && required.iter().map(|&i| pool.members[i].character_id).collect::<HashSet<_>>().len() == required.len()
             && members.iter().map(|&i| pool.members[i].character_id).collect::<HashSet<_>>().len() >= 5;
-        Ok(Self { members, snaps, required, leader: allowed.leader, allowed_members: allowed.members, feasible })
+        Ok(Self {
+            members,
+            snaps,
+            required,
+            required_snaps,
+            leader: allowed.leader,
+            allowed_members: allowed.members,
+            feasible,
+        })
     }
     /// Internal proof-restricted view; the caller must prove discarded members cannot
     /// tie or beat an already evaluated incumbent in the ORIGINAL domain.
@@ -72,6 +86,7 @@ impl CandidateDomain {
     pub(crate) fn check_fixed(&self, pool: &Pool, p: &PhysicalDeck) -> Result<(), Error> {
         pool.check_deck(&p.as_deck())?;
         if p.members.iter().any(|&m| !self.allowed_members[m])
+            || self.required_snaps.iter().any(|s| !p.snaps.contains(&Some(*s)))
             || self.required.iter().any(|m| !p.members.contains(m))
             || self.leader.is_some_and(|leader| p.members[2] != leader)
             || p.snaps.iter().flatten().any(|snap| !self.snaps.contains(snap))

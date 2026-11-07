@@ -194,7 +194,12 @@ fn live(gekisou: bool) -> OrderedLive {
             score_music_length_ms: None,
             assist_factor: 1.0,
         },
-        gekisou: gekisou.then(|| GekisouSetup { fevers: vec![(5000, 7500)], missions: vec![2, 1, 3] }),
+        gekisou: gekisou.then(|| GekisouSetup {
+            rank_percents: None,
+            timing_error: None,
+            fevers: vec![(5000, 7500)],
+            missions: vec![2, 1, 3],
+        }),
         rank_confirmations: None,
         play: LivePlay { frames, base_seed: 0 },
         delta_times,

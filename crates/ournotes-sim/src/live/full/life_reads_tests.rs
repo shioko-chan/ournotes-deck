@@ -64,7 +64,8 @@ fn model(random_chain: bool, heal_phase: i64) -> LiveModel {
         skill_target_music_type: 0,
         assist_factor: 1.0,
     };
-    let setup = GekisouSetup { fevers: vec![(155, 500)], missions: vec![2, 2, 2] };
+    let setup =
+        GekisouSetup { rank_percents: None, timing_error: None, fevers: vec![(155, 500)], missions: vec![2, 2, 2] };
     LiveModel::new_gekisou(&master, &deck, &notes, &[(0, 155)], params, &setup).unwrap()
 }
 

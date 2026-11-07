@@ -121,7 +121,14 @@ pub(crate) fn compile_execution(
     let mut deck_payoff = None;
     let mut deck_payoff_refusal = None;
     let mut team_power = None;
-    let (joint, bound_fallback) = if matches!(strategy, Strategy::BranchAndBound)
+    // Top-K Snap matching and equivalent-Snap reductions assume no mandatory resources.
+    // Enumerate physical bindings when resources are mandatory; relaxed bounds alone cannot
+    // justify discarding the best unconstrained assignments and keeping only K of them.
+    let (joint, bound_fallback) = if !request.constraints.include_snaps.is_empty()
+        || request.objective.context().is_some_and(|c| c.gekisou.timing_error.is_some())
+    {
+        (None, Some("mandatory Snaps or timing-error play use physical enumeration".into()))
+    } else if matches!(strategy, Strategy::BranchAndBound)
         && crate::search::team_power::applies(&request.objective, metric)
     {
         match crate::search::team_power::TeamPowerBounds::compile(pool, request, &domain, metric) {
@@ -244,15 +251,31 @@ pub fn build_card_pool<'m>(
         return Err(Error::Input("skip/live require an explicit scenario".into()));
     }
     let context_input = r.context.clone().unwrap_or(ContextInput {
+        gekisou_rank_percents: None,
+        gekisou_range_diagnostics: false,
         power_snapshot: PowerSnapshotInput { event_ids: roster.player.events.clone(), captured_jst_ticks: None },
         result_clock: None,
         event_payoff: None,
     });
+    if context_input.gekisou_rank_percents.is_some()
+        && (!matches!(r.execution, Execution::Live { gekisou: true, .. }) || r.network_confirmations.is_some())
+    {
+        return Err(Error::Input("gekisouRankPercents requires a solo Gekisou live".into()));
+    }
     let fevers = score_id.and_then(|i| data.data_chart(i)).map(|c| c.fevers.as_slice()).unwrap_or(&[]);
     let mut context =
         r.scenario.as_ref().map(|s| context_input.resolve(&data.master, s.scenario(), score_id, fevers)).transpose()?;
     if let Some(context) = &mut context {
         context.rank_confirmations = r.network_confirmations.clone();
+        if let Execution::Live { gekisou, play: PlayPolicy::TimingError { sigma_ms, .. }, .. } = r.execution {
+            if !gekisou || r.network_confirmations.is_some() {
+                return Err(Error::Input("timingError requires a solo Gekisou live".into()));
+            }
+            if context.gekisou.missions.iter().take(fevers.len()).any(|&m| m == 2) {
+                return Err(Error::Unsupported("timingError with LUCK ranges is not supported".into()));
+            }
+            context.gekisou.timing_error = Some(ournotes_sim::live::full::TimingError::new(sigma_ms)?);
+        }
     }
     let pool = match &context {
         Some(c) => c.pool(&data.master, roster)?,
@@ -276,6 +299,15 @@ pub fn build_card_pool<'m>(
             let ctx = context.as_ref().expect("explicit live scene");
             let stream = match play {
                 PlayPolicy::Stream { stream } => stream.clone(),
+                PlayPolicy::TimingError { great_fraction, .. } => {
+                    JudgementStream::with_accuracy(
+                        &chart,
+                        &dc.judgement_types,
+                        Some(&JustRule::new(&data.master, &ctx.gekisou)?),
+                        ournotes_sim::live::model::Accuracy { great_fraction: *great_fraction, just_fraction: 0.0 },
+                    )?
+                    .0
+                }
                 PlayPolicy::TheoreticalBest if *gekisou => JudgementStream::theoretical_best_gekisou(
                     &chart,
                     &dc.judgement_types,
@@ -308,7 +340,7 @@ pub fn build_card_pool<'m>(
         return Err(Error::Capacity(format!("at most {MAX_INITIAL_DECKS} initialDecks")));
     }
     validate_payoff(&pool, &request, &r.metric, context_input.event_payoff.as_ref())?;
-    let resolved_context = serde_json::json!({"dataProvenance":data.provenance,"scenario":context.as_ref().map(|c|format!("{:?}",c.scenario)),"baseLiveMusicId":context.as_ref().map(|c|c.resolved.live_music_id),"scoreId":score_id,"calcEventParameter":context.as_ref().map(|c|c.resolved.calc_event_parameter),"skillTargetMusicType":context.as_ref().map(|c|c.resolved.skill_target_music_type),"gekisouMissions":context.as_ref().map(|c|c.resolved.gekisou_missions),"context":context_input,"simulation":r.simulation,"networkConfirmations":r.network_confirmations,"playPolicy":match &r.execution {Execution::Live{play:PlayPolicy::TheoreticalBest,..}=>"explicit theoretical AP/Just scenario",Execution::Live{play:PlayPolicy::Accuracy(_),..}=>"theoretical play with declared Great/Just shares",Execution::Live{..}=>"declared judgement stream",_=>"deterministic"},"eligibility":"unlock/progression eligibility not inferred","nativeEvidence":"1.0.1-25 AArch64; selected regional master is explicit data, online patch/version parity not inferred"});
+    let resolved_context = serde_json::json!({"dataProvenance":data.provenance,"scenario":context.as_ref().map(|c|format!("{:?}",c.scenario)),"baseLiveMusicId":context.as_ref().map(|c|c.resolved.live_music_id),"scoreId":score_id,"calcEventParameter":context.as_ref().map(|c|c.resolved.calc_event_parameter),"skillTargetMusicType":context.as_ref().map(|c|c.resolved.skill_target_music_type),"gekisouMissions":context.as_ref().map(|c|c.resolved.gekisou_missions),"context":context_input,"simulation":r.simulation,"networkConfirmations":r.network_confirmations,"playPolicy":match &r.execution {Execution::Live{play:PlayPolicy::TheoreticalBest,..}=>"explicit theoretical AP/Just scenario",Execution::Live{play:PlayPolicy::TimingError{..},..}=>"deterministic normal timing-error dither with active 4004 windows",Execution::Live{play:PlayPolicy::Accuracy(_),..}=>"theoretical play with declared Great/Just shares",Execution::Live{..}=>"declared judgement stream",_=>"deterministic"},"eligibility":"unlock/progression eligibility not inferred","nativeEvidence":"1.0.1-25 AArch64; selected regional master is explicit data, online patch/version parity not inferred"});
     let plan = compile_execution(
         &pool,
         &request,

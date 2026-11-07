@@ -25,7 +25,8 @@
 //! member's running live skills); with Gekisou on also 11000..=11005 (luck), 12000, 12002..=12004 (Gekisou combo),
 //! 13000, 13002..=13005 (Just count and Just conversion); without Gekisou those types have no applier and do nothing.
 //! 0, 1000..=1003 and 1500..=1503 have no live applier either. Gekisou and Gekisou support skills treat 4004 as a
-//! no-op (judgement windows act on the judgement stream). Every condition type and every cumulative condition type
+//! no-op on declared judgements; explicit timing-error play instead applies their mutable windows.
+//! Every condition type and every cumulative condition type
 //! is built (the Gekisou ones fail when asked in a live without Gekisou, except 7000, which never hits there). A
 //! Gekisou skill of mission All (4) takes the Combo list's place and passes every trigger gate; more than three
 //! fevers give three ranges and fail when the fourth fever starts. 13001 (Just windows) is a Gekisou applier too:
@@ -102,6 +103,8 @@ pub use luck_shapes::{
 };
 pub use orders::{MaximumOrdersOutcome, OrderSharing, OrderedLive, OrdersOutcome, RecordedOrder};
 mod raw_runtime;
+mod timing_error;
+pub use timing_error::TimingError;
 mod replay_rank;
 mod score_program;
 pub use raw_runtime::{RELAX_TARGET_JUDGEMENTS, RawJudgedNote, RawJudgementRuntime};
@@ -255,6 +258,10 @@ pub struct LiveParams {
 /// Gekisou of a live: the chart's fevers and the song's missions.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct GekisouSetup {
+    /// Optional solo rank-1 bonus percentages; does not alter network-confirmed ranks.
+    pub rank_percents: Option<[i64; 3]>,
+    /// Deterministic normal timing-error realization, when explicitly requested.
+    pub timing_error: Option<TimingError>,
     /// Fever ranges `(start, end)` in chart order; the first three are the Gekisou ranges (every one with external
     /// ranking). A fourth fever makes the live fail when it starts, as the game's controller does.
     pub fevers: Vec<(i32, i32)>,
@@ -276,6 +283,7 @@ pub struct GekisouRange {
     pub state: u8,
     pub combo: i32,
     pub max_combo: i32,
+    /// Includes Just-bonus skills 13000/13002, as used by compare_network_result.
     pub just_count: i32,
     /// Controller score snapshots at range start and end. Solo ranking replaces these with timestamp queries
     /// for the completion it ranks; the native-network adapter retains the original frame snapshots.
@@ -356,6 +364,7 @@ pub struct LiveModel {
     gk_appliers: GkAppliers,
     /// Mutable raw judgement windows, Assist and window limit callbacks; `None` for a judged stream.
     raw_runtime: Option<RawJudgementRuntime>,
+    timing_error: Option<timing_error::Runtime>,
     /// The open raw frame's results, in FT order.
     raw_pending: Option<Vec<RawJudgedNote>>,
     /// The Gekisou rank confirmation taken when the current frame began.

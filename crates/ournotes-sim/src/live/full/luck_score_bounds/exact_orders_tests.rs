@@ -166,7 +166,7 @@ fn formation(
         })
         .collect();
     let delta = vec![step as f32 / 1000.0; frames.len()];
-    let setup = GekisouSetup { fevers, missions: vec![2, 2, 2] };
+    let setup = GekisouSetup { rank_percents: None, timing_error: None, fevers, missions: vec![2, 2, 2] };
     (master, deck, notes, events, params, setup, LivePlay { frames, base_seed: 0 }, delta)
 }
 

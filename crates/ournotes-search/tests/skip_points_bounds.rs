@@ -168,6 +168,7 @@ fn oracle(
             "configured-rank payoff must match hand calculation, independently of final score"
         );
         rows.push(RecommendedDeck {
+            gekisou_ranges: None,
             members,
             snaps,
             power,
