@@ -5,11 +5,11 @@ Deck power, skip score and live score for BanG Dream! Our Notes, and an exact To
 [中文](README.md) · [Roadmap](docs/roadmap.en.md)
 
 > [!NOTE]
-> **Maintenance status: no longer actively maintained; new maintainers are welcome.**
+> **Maintenance status: no longer actively maintained.**
 >
-> The maintainer no longer has the time to work on it and does not play the game, so no implementation is guaranteed to stay correct or efficient. Forks and pull requests of any size are welcome without prior discussion. To publish a new version, push a `vX.Y.Z` tag on main that matches the version; the release workflow builds and publishes the GitHub Release and the PyPI package `ournotes-sim`. Open an issue to request write access. The project is released under MIT OR Apache-2.0, so taking it over or republishing it needs no further permission.
+> The maintainer no longer has the time to work on it and does not play the game. Both the correctness and the solving speed of the implementation depend on the game version, and future game versions are not guaranteed to be followed. Taking over maintenance, forks and pull requests are welcome. A `vX.Y.Z` tag on main that matches the version publishes the GitHub Release and the PyPI package `ournotes-sim`; pushing a tag needs write access, which can be requested in an issue. The project is released under MIT OR Apache-2.0, so taking it over or republishing it needs no further permission.
 >
-> For the game version checked so far (client 1.0.6), the results of the calculations (deck power, skip score and event points) and of the whole-live simulation (live score) are correct, and a `Complete` search is still the exact Top-K over the declared model and inputs (see [Correctness](#correctness)). The implementation puts correctness first and does not prioritise speed: search and single-live simulation stay essentially single-threaded (parallel search is only an optional fallback on the roadmap), so searches can be slow and may reach the time limit. These statements cover only the checked version, resources and inputs; game updates, unmodelled rules and results outside the declared range are not guaranteed.
+> For the game version checked so far (client 1.0.6), the results of the calculations (deck power, skip score and event points) and of the whole-live simulation (live score) are correct, and a `Complete` search is the exact Top-K over the declared model and inputs (see [Correctness](#correctness)). When maintenance stopped, not every objective could be solved within a practical time: search and single-live simulation are essentially single-threaded, and some requests cannot finish their proof within the time limit and return `TimedOut`. These statements cover only the checked version, resources and inputs; game updates, unmodelled rules and results outside the declared range are not guaranteed.
 
 ## Repository layout
 
